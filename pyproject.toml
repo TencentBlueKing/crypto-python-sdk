@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "bk-crypto-python-sdk"
+version = "0.1.0"
+description = "BlueKing crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries. It provides a unified encryption and decryption implementation, making it easy for projects to seamlessly switch between different encryption methods without any intrusion."
+authors = ["blueking <blueking@tencent.com>"]
+readme = "README.md"
+packages = [
+    { include = "bkcrypto" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.6.12,<3.11"
+pycryptodome = "^3.18.0"
+tongsuopy-crayon = "^1.0.2b5"
+
+[tool.poetry.dev-dependencies]
+ipython = { version = "^7.34.0", python = ">=3.7" }
+pyproject-flake8 = "5.0.4.post1"
+isort = "^5.5.4"
+black = "22.3.0"
+pre-commit = "^2.16.0"
+codecov = "^2.1.13"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+# flake8 不支持 pyproject.toml：https://stackoverflow.com/questions/64482562/
+# 平替 flake8
+# - pflake8: https://github.com/csachs/pyproject-flake8
+# - falke9: https://pypi.org/project/flake9/ (亲测无效)
+python_requires = ">= 3.7.2"
+ignore = "F405,W503,E203"
+max-line-length = 120
+max-complexity = 26
+format = "pylint"
+show_source = "false"
+statistics = "true"
+count = "true"
+exclude = "migrations,*.pyc,.git,__pycache__,static,node_modules,templates,bin,config,scripts,script"
+
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+  # 以上为项目需要忽略的其他目录
+)/
+'''
+
+[tool.isort]
+# refer: https://pycqa.github.io/isort/docs/configuration/options.html
+profile = "black"
+line_length = 120
+skip_glob = ["*/migrations/*", "*/node_modules/*"]

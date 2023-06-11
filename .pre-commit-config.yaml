@@ -1,0 +1,38 @@
+default_stages: [commit]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+    - id: check-merge-conflict
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+      - id: flake8
+        name: flake8[pyproject-flake8]
+        language: python
+        types: [python]
+        entry: pflake8 --config=pyproject.toml
+        additional_dependencies: [flake8-typing-imports]
+
+  - repo: https://github.com/psf/black
+    # 20.8b1 -> 22.3.0 to fix "ImportError: cannot import name '_unicodefun' from 'click'"
+    # refer: https://stackoverflow.com/questions/71673404/
+    rev: 22.3.0
+    hooks:
+      - id: black
+        name: black
+        language: python
+        types: [python]
+        entry: black --config=pyproject.toml
+
+  - repo: https://github.com/pycqa/isort
+    # 5.5.4 -> 5.12.0 to fix 'pip-shims<=0.3.4' does not match '^[a-zA-Z-_.0-9]+$'
+    # refer: https://github.com/home-assistant/core/issues/86892
+    rev: 5.5.4
+    hooks:
+      - id: isort
+        name: isort
+        language: python
+        types: [python]
+        entry: isort --settings-path=pyproject.toml
