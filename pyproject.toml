@@ -10,8 +10,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.6.12,<3.11"
-pycryptodome = "^3.18.0"
 tongsuopy-crayon = "^1.0.2b5"
+pycryptodomex = "^3.18.0"
+dacite = "^1.8.1"
+wrapt = "^1.15.0"
 
 [tool.poetry.dev-dependencies]
 ipython = { version = "^7.34.0", python = ">=3.7" }
