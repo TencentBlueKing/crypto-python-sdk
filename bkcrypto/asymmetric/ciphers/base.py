@@ -18,11 +18,24 @@ import wrapt
 from dacite import from_dict
 
 from bkcrypto import constants, types
+from bkcrypto.utils import convertors, module_loding
+
+from ...utils.convertors import BaseConvertor
 
 
 @dataclass
 class BaseAsymmetricConfig:
-    pass
+    public_key: typing.Any = None
+    private_key: typing.Any = None
+    encoding: str = "utf-8"
+
+    convertor_import_path: str = module_loding.get_import_path(convertors.Base64Convertor)
+
+    # 非可配置属性
+    convertor: typing.Type[BaseConvertor] = None
+
+    def __post_init__(self):
+        self.convertor = module_loding.import_module(self.convertor_import_path)
 
 
 def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
@@ -60,8 +73,9 @@ class BaseAsymmetricCipher:
     def _load_private_key(self, private_key_string: types.PrivateKeyString):
         raise NotImplementedError
 
+    @staticmethod
     @abc.abstractmethod
-    def load_public_key_from_pkey(self):
+    def load_public_key_from_pkey(private_key: typing.Any):
         """
         通过 private_key 加载公钥
         :return:
@@ -77,19 +91,19 @@ class BaseAsymmetricCipher:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _encrypt(self, plaintext: str) -> str:
+    def _encrypt(self, plaintext: str) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _decrypt(self, ciphertext: str) -> str:
+    def _decrypt(self, ciphertext_bytes: bytes) -> str:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _sign(self, plaintext: str) -> str:
+    def _sign(self, plaintext: str) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _verify(self, plaintext: str, signature: str) -> bool:
+    def _verify(self, plaintext: str, signature_types: bytes) -> bool:
         raise NotImplementedError
 
     def __init__(
@@ -102,19 +116,18 @@ class BaseAsymmetricCipher:
     ):
         options: typing.Dict[str, typing.Any] = copy.deepcopy(options)
 
-        public_key: typing.Optional[typing.Any] = self.load_public_key(public_key_string, public_key_file)
+        # init config
+        self.config = from_dict(self.CONFIG_DATA_CLASS, options)
 
+        public_key: typing.Optional[typing.Any] = self.load_public_key(public_key_string, public_key_file)
         private_key: typing.Optional[typing.Any] = self.load_private_key(private_key_string, private_key_file)
 
         if not public_key and private_key:
             # load public_key_obj from private_key_file
-            public_key = self.load_public_key_from_pkey()
+            public_key = self.load_public_key_from_pkey(private_key)
 
-        options[constants.AsymmetricKeyAttribute.PUBLIC_KEY.value] = public_key
-        options[constants.AsymmetricKeyAttribute.PRIVATE_KEY.value] = private_key
-
-        # init config
-        self.config = from_dict(self.CONFIG_DATA_CLASS, options)
+        self.config.public_key = public_key
+        self.config.private_key = private_key
 
     def load_key_base(
         self,
@@ -145,6 +158,7 @@ class BaseAsymmetricCipher:
         :param key_file:
         :return:
         """
+        # TODO(crayon,2023/06/15) 支持密码
         return self.load_key_base(self._load_private_key, key_str, key_file)
 
     def load_public_key(
@@ -165,7 +179,8 @@ class BaseAsymmetricCipher:
         :param plaintext: 待加密的字符串
         :return: 密文
         """
-        return self._encrypt(plaintext)
+        ciphertext_bytes: bytes = self._encrypt(plaintext)
+        return self.config.convertor.to_string(ciphertext_bytes)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt(self, ciphertext: str) -> str:
@@ -174,7 +189,8 @@ class BaseAsymmetricCipher:
         :param ciphertext: 密文
         :return: 解密后的信息
         """
-        return self._decrypt(ciphertext)
+        ciphertext_bytes: bytes = self.config.convertor.from_string(ciphertext)
+        return self._decrypt(ciphertext_bytes)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def sign(self, plaintext: str) -> str:
@@ -183,7 +199,8 @@ class BaseAsymmetricCipher:
         :param plaintext: 需要发送给客户端的信息
         :return:
         """
-        return self._sign(plaintext)
+        signature_types: bytes = self._sign(plaintext)
+        return self.config.convertor.to_string(signature_types)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
     def verify(self, plaintext: str, signature: str) -> bool:
@@ -193,7 +210,8 @@ class BaseAsymmetricCipher:
         :param signature: 签名
         :return:
         """
-        return self._verify(plaintext, signature)
+        signature_bytes: bytes = self.config.convertor.from_string(signature)
+        return self._verify(plaintext, signature_bytes)
 
     @staticmethod
     def read_key(

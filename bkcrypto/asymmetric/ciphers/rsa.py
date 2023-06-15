@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import base64
 import typing
 from dataclasses import dataclass
 
@@ -31,7 +30,6 @@ class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
 
     rsa_padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
     rsa_sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
-    rsa_encoding: str = "utf-8"
     # In 2017, a sufficient length is deemed to be 2048 bits.
     # 具体参考 -> https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html
     rsa_pkey_bits: int = 2048
@@ -43,6 +41,8 @@ class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
         # TODO(crayon) hashAlgo 哈希算法注入
         self.cipher_maker = constants.RSACipherPadding.get_cipher_maker_by_member(self.rsa_padding)
         self.sig_scheme_maker = constants.RSASigScheme.get_sig_scheme_maker_by_member(self.rsa_sig_scheme)
+
+        super().__post_init__()
 
 
 class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
@@ -57,52 +57,42 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
     def _load_private_key(self, private_key_string: types.PrivateKeyString) -> RSA.RsaKey:
         return RSA.importKey(private_key_string)
 
-    def load_public_key_from_pkey(self) -> RSA.RsaKey:
-        return self.config.private_key.publickey()
-
     def generate_key_pair(self) -> typing.Tuple[types.PrivateKeyString, types.PublicKeyString]:
         private_key_obj: RSA.RsaKey = RSA.generate(self.config.rsa_pkey_bits)
         private_key: bytes = private_key_obj.exportKey()
         public_key: bytes = private_key_obj.publickey().exportKey()
-        return private_key.decode(encoding=self.config.rsa_encoding), public_key.decode(
-            encoding=self.config.rsa_encoding
-        )
+        return private_key.decode(encoding=self.config.encoding), public_key.decode(encoding=self.config.encoding)
 
-    def _encrypt(self, plaintext: str) -> str:
+    def _encrypt(self, plaintext: str) -> bytes:
         ciphertext_bytes: bytes = b""
         block_size: int = self.get_block_size(self.config.public_key)
         cipher: types.RSACipher = self.config.cipher_maker(self.config.public_key)
-        message_bytes: bytes = plaintext.encode(encoding=self.config.rsa_encoding)
-        for block in self.block_list(message_bytes, block_size):
+        plaintext_bytes: bytes = plaintext.encode(encoding=self.config.encoding)
+        for block in self.block_list(plaintext_bytes, block_size):
             ciphertext_bytes += cipher.encrypt(block)
-        # TODO(crayon) 似乎可以开放一个 handle 用于格式化密文
-        ciphertext = base64.b64encode(ciphertext_bytes)
-        return ciphertext.decode(encoding=self.config.rsa_encoding)
+        return ciphertext_bytes
 
-    def _decrypt(self, ciphertext: str) -> str:
+    def _decrypt(self, ciphertext_bytes: bytes) -> str:
         plaintext_bytes: bytes = b""
-        ciphertext_bytes: types = base64.b64decode(ciphertext)
         cipher: types.RSACipher = self.config.cipher_maker(self.config.private_key)
         block_size: int = self.get_block_size(self.config.private_key, is_encrypt=False)
         for block in self.block_list(ciphertext_bytes, block_size):
             plaintext_bytes += cipher.decrypt(block, "")
-        return plaintext_bytes.decode(encoding=self.config.rsa_encoding)
+        return plaintext_bytes.decode(encoding=self.config.encoding)
 
-    def _sign(self, plaintext: str) -> str:
+    def _sign(self, plaintext: str) -> bytes:
         sig_scheme: types.RSASigScheme = self.config.sig_scheme_maker(self.config.private_key)
-        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.rsa_encoding))
-        signature: types = sig_scheme.sign(sha)
-        return base64.b64encode(signature).decode(encoding=self.config.rsa_encoding)
+        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.encoding))
+        return sig_scheme.sign(sha)
 
-    def _verify(self, plaintext: str, signature: str) -> bool:
-        signature: types = base64.b64decode(signature)
+    def _verify(self, plaintext: str, signature_types: bytes) -> bool:
         sig_scheme: types.RSASigScheme = self.config.sig_scheme_maker(self.config.public_key)
-        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.rsa_encoding))
-        try:
-            sig_scheme.verify(sha, signature)
-            return True
-        except ValueError:
-            return False
+        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.encoding))
+        return sig_scheme.verify(sha, signature_types)
+
+    @staticmethod
+    def load_public_key_from_pkey(private_key: RSA.RsaKey) -> RSA.RsaKey:
+        return private_key.publickey()
 
     @staticmethod
     def block_list(

@@ -35,6 +35,17 @@ pip install bk-crypto
 
 ...
 
+
+## 问题
+
+### Mac M1 报错：symbol not found in flat namespace '_ffi_prep_closure'
+
+```shell
+# refer: https://stackoverflow.com/questions/66035003/
+pip uninstall cffi
+LDFLAGS=-L$(brew --prefix libffi)/lib CFLAGS=-I$(brew --prefix libffi)/include pip install cffi
+```
+
 ## 贡献
 
 欢迎您对 bk-crypto 项目作出贡献！请随时提交 issue 和 pull request。
