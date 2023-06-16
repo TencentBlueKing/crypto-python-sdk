@@ -20,8 +20,6 @@ from dacite import from_dict
 from bkcrypto import constants, types
 from bkcrypto.utils import convertors, module_loding
 
-from ...utils.convertors import BaseConvertor
-
 
 @dataclass
 class BaseAsymmetricConfig:
@@ -32,10 +30,10 @@ class BaseAsymmetricConfig:
     convertor_import_path: str = module_loding.get_import_path(convertors.Base64Convertor)
 
     # 非可配置属性
-    convertor: typing.Type[BaseConvertor] = None
+    convertor: typing.Type[convertors.BaseConvertor] = None
 
     def __post_init__(self):
-        self.convertor = module_loding.import_module(self.convertor_import_path)
+        self.convertor = module_loding.import_string(self.convertor_import_path)
 
 
 def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
