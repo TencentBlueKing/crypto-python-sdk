@@ -18,7 +18,9 @@ import wrapt
 from dacite import from_dict
 
 from bkcrypto import constants, types
-from bkcrypto.utils import convertors, module_loding
+from bkcrypto.utils import convertors
+
+from .. import interceptors
 
 
 @dataclass
@@ -26,14 +28,11 @@ class BaseAsymmetricConfig:
     public_key: typing.Any = None
     private_key: typing.Any = None
     encoding: str = "utf-8"
-
-    convertor_import_path: str = module_loding.get_import_path(convertors.Base64Convertor)
-
-    # 非可配置属性
-    convertor: typing.Type[convertors.BaseConvertor] = None
+    convertor: typing.Type[convertors.BaseConvertor] = convertors.Base64Convertor
+    interceptor: typing.Type[interceptors.BaseInterceptor] = interceptors.BaseInterceptor
 
     def __post_init__(self):
-        self.convertor = module_loding.import_string(self.convertor_import_path)
+        pass
 
 
 def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
@@ -177,8 +176,10 @@ class BaseAsymmetricCipher:
         :param plaintext: 待加密的字符串
         :return: 密文
         """
+        plaintext: str = self.config.interceptor.before_encrypt(plaintext)
         ciphertext_bytes: bytes = self._encrypt(plaintext)
-        return self.config.convertor.to_string(ciphertext_bytes)
+        ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
+        return self.config.interceptor.after_encrypt(ciphertext)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt(self, ciphertext: str) -> str:
@@ -187,8 +188,10 @@ class BaseAsymmetricCipher:
         :param ciphertext: 密文
         :return: 解密后的信息
         """
+        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext)
         ciphertext_bytes: bytes = self.config.convertor.from_string(ciphertext)
-        return self._decrypt(ciphertext_bytes)
+        plaintext: str = self._decrypt(ciphertext_bytes)
+        return self.config.interceptor.after_decrypt(plaintext)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def sign(self, plaintext: str) -> str:
@@ -197,8 +200,10 @@ class BaseAsymmetricCipher:
         :param plaintext: 需要发送给客户端的信息
         :return:
         """
+        plaintext: str = self.config.interceptor.before_sign(plaintext)
         signature_types: bytes = self._sign(plaintext)
-        return self.config.convertor.to_string(signature_types)
+        signature: str = self.config.convertor.to_string(signature_types)
+        return self.config.interceptor.after_sign(signature)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
     def verify(self, plaintext: str, signature: str) -> bool:
@@ -208,6 +213,7 @@ class BaseAsymmetricCipher:
         :param signature: 签名
         :return:
         """
+        plaintext, signature = self.config.interceptor.before_verify(plaintext, signature)
         signature_bytes: bytes = self.config.convertor.from_string(signature)
         return self._verify(plaintext, signature_bytes)
 
