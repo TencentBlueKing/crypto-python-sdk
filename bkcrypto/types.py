@@ -15,6 +15,7 @@ from Cryptodome.Cipher.PKCS1_OAEP import PKCS1OAEP_Cipher
 from Cryptodome.Cipher.PKCS1_v1_5 import PKCS115_Cipher
 from Cryptodome.PublicKey.RSA import RsaKey
 from Cryptodome.Signature import pkcs1_15, pss
+from tongsuopy.crypto.ciphers import modes
 
 T = typing.TypeVar("T")
 
@@ -40,3 +41,18 @@ RSACipherMaker = typing.Callable[[RsaKey], RSACipher]
 RSASigSchemeMaker = typing.Callable[
     [RsaKey, typing.Optional[MaskFunction], typing.Optional[int], typing.Optional[RndFunction]], RSASigScheme
 ]
+
+
+SymmetricKey = bytes
+
+SymmetricIv = bytes
+
+SymmetricTag = bytes
+
+SymmetricAad = bytes
+
+SM4ModeClass = typing.Union[
+    typing.Type[modes.CBC], typing.Type[modes.CTR], typing.Type[modes.CFB], typing.Type[modes.GCM]
+]
+
+AESModeClass = typing.Any

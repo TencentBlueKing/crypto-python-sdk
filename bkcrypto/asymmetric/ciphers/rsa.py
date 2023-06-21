@@ -28,8 +28,11 @@ class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
     public_key: typing.Optional[RSA.RsaKey] = None
     private_key: typing.Optional[RSA.RsaKey] = None
 
+    # 加解密填充方案，默认为 `PKCS1_v1_5`
     rsa_padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
+    # 签名方案，默认为 `PKCS1_v1_5`
     rsa_sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
+    # 密钥长度（bit）
     # In 2017, a sufficient length is deemed to be 2048 bits.
     # 具体参考 -> https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html
     rsa_pkey_bits: int = 2048
@@ -63,31 +66,30 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
         public_key: bytes = private_key_obj.publickey().exportKey()
         return private_key.decode(encoding=self.config.encoding), public_key.decode(encoding=self.config.encoding)
 
-    def _encrypt(self, plaintext: str) -> bytes:
+    def _encrypt(self, plaintext_bytes: bytes) -> bytes:
         ciphertext_bytes: bytes = b""
         block_size: int = self.get_block_size(self.config.public_key)
         cipher: types.RSACipher = self.config.cipher_maker(self.config.public_key)
-        plaintext_bytes: bytes = plaintext.encode(encoding=self.config.encoding)
         for block in self.block_list(plaintext_bytes, block_size):
             ciphertext_bytes += cipher.encrypt(block)
         return ciphertext_bytes
 
-    def _decrypt(self, ciphertext_bytes: bytes) -> str:
+    def _decrypt(self, ciphertext_bytes: bytes) -> bytes:
         plaintext_bytes: bytes = b""
         cipher: types.RSACipher = self.config.cipher_maker(self.config.private_key)
         block_size: int = self.get_block_size(self.config.private_key, is_encrypt=False)
         for block in self.block_list(ciphertext_bytes, block_size):
             plaintext_bytes += cipher.decrypt(block, "")
-        return plaintext_bytes.decode(encoding=self.config.encoding)
+        return plaintext_bytes
 
-    def _sign(self, plaintext: str) -> bytes:
+    def _sign(self, plaintext_bytes: bytes) -> bytes:
         sig_scheme: types.RSASigScheme = self.config.sig_scheme_maker(self.config.private_key)
-        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.encoding))
+        sha: SHA1.SHA1Hash = SHA1.new(plaintext_bytes)
         return sig_scheme.sign(sha)
 
-    def _verify(self, plaintext: str, signature_types: bytes) -> bool:
+    def _verify(self, plaintext_bytes: bytes, signature_types: bytes) -> bool:
         sig_scheme: types.RSASigScheme = self.config.sig_scheme_maker(self.config.public_key)
-        sha: SHA1.SHA1Hash = SHA1.new(plaintext.encode(encoding=self.config.encoding))
+        sha: SHA1.SHA1Hash = SHA1.new(plaintext_bytes)
         return sig_scheme.verify(sha, signature_types)
 
     @staticmethod

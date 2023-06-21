@@ -10,20 +10,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import typing
 
-from bkcrypto.utils import base_interceptors
-
-
-class BaseAsymmetricInterceptor(base_interceptors.BaseInterceptor):
+class BaseInterceptor:
     @staticmethod
-    def before_sign(plaintext: str, **kwargs) -> str:
+    def before_encrypt(plaintext: str, **kwargs) -> str:
         return plaintext
 
     @staticmethod
-    def after_sign(signature: str, **kwargs) -> str:
-        return signature
+    def after_encrypt(ciphertext: str, **kwargs) -> str:
+        return ciphertext
 
     @staticmethod
-    def before_verify(plaintext: str, signature: str, **kwargs) -> typing.Tuple[str, str]:
-        return plaintext, signature
+    def before_decrypt(ciphertext: str, **kwargs) -> str:
+        return ciphertext
+
+    @staticmethod
+    def after_decrypt(plaintext: str, **kwargs) -> str:
+        return plaintext

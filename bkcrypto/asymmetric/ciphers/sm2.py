@@ -63,20 +63,18 @@ class SM2AsymmetricCipher(base.BaseAsymmetricCipher):
 
         return private_key_string, public_key_string
 
-    def _encrypt(self, plaintext: str) -> bytes:
-        return self.config.public_key.encrypt(plaintext.encode(encoding=self.config.encoding))
+    def _encrypt(self, plaintext_bytes: bytes) -> bytes:
+        return self.config.public_key.encrypt(plaintext_bytes)
 
-    def _decrypt(self, ciphertext_bytes: bytes) -> str:
-        return self.config.private_key.decrypt(ciphertext_bytes).decode(encoding=self.config.encoding)
+    def _decrypt(self, ciphertext_bytes: bytes) -> bytes:
+        return self.config.private_key.decrypt(ciphertext_bytes)
 
-    def _sign(self, plaintext: str) -> bytes:
-        return self.config.private_key.sign(plaintext.encode(encoding=self.config.encoding), ec.ECDSA(hashes.SM3()))
+    def _sign(self, plaintext_bytes: bytes) -> bytes:
+        return self.config.private_key.sign(plaintext_bytes, ec.ECDSA(hashes.SM3()))
 
-    def _verify(self, plaintext: str, signature_types: bytes) -> bool:
+    def _verify(self, plaintext_bytes: bytes, signature_types: bytes) -> bool:
         try:
-            self.config.public_key.verify(
-                signature_types, plaintext.encode(encoding=self.config.encoding), ec.ECDSA(hashes.SM3())
-            )
+            self.config.public_key.verify(signature_types, plaintext_bytes, ec.ECDSA(hashes.SM3()))
             return True
         except exceptions.InvalidSignature:
             return False

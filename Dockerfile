@@ -53,7 +53,7 @@ RUN set -ex &&  \
 
 
 RUN set -ex && \
-    poetry install
+    poetry install --no-root
 
 FROM base AS base-app
 

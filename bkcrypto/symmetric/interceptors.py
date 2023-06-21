@@ -10,20 +10,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import typing
-
 from bkcrypto.utils import base_interceptors
 
 
-class BaseAsymmetricInterceptor(base_interceptors.BaseInterceptor):
-    @staticmethod
-    def before_sign(plaintext: str, **kwargs) -> str:
-        return plaintext
-
-    @staticmethod
-    def after_sign(signature: str, **kwargs) -> str:
-        return signature
-
-    @staticmethod
-    def before_verify(plaintext: str, signature: str, **kwargs) -> typing.Tuple[str, str]:
-        return plaintext, signature
+class BaseSymmetricInterceptor(base_interceptors.BaseInterceptor):
+    pass
