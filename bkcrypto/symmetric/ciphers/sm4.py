@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 import typing
 from dataclasses import dataclass
 
-from tongsuopy.crypto.ciphers import AEADEncryptionContext, Cipher, CipherContext, algorithms
+from tongsuopy.crypto.ciphers import AEADEncryptionContext, Cipher, CipherContext, algorithms, modes
 
 from bkcrypto import constants, types
 
@@ -24,42 +24,25 @@ from .base import EncryptionMetadata
 @dataclass
 class SM4SymmetricConfig(base.BaseSymmetricConfig):
 
-    sm4_mode: constants.SM4Mode = constants.SM4Mode.CTR
-    sm4_key: types.SymmetricKey = None
-
-    sm4_enable_iv: bool = True
-    sm4_iv_size: int = 16
-    sm4_iv: typing.Optional[types.SymmetricIv] = None
-
-    sm4_aad_size: int = 20
-    sm4_aad: typing.Optional[types.SymmetricAad] = None
-    sm4_enable_random_aad: bool = True
-
-    sm4_encryption_metadata_combination_mode: constants.EncryptionMetadataCombinationMode = (
-        constants.EncryptionMetadataCombinationMode.BYTES
-    )
-    sm4_metadata_combination_separator: str = "$bkcrypto$"
-
     mode_class: types.SM4ModeClass = None
 
     def __post_init__(self):
-        self.mode = self.sm4_mode
-        self.key = self.sm4_key
-        # SM4 算法密钥长度固定
-        self.key_size = algorithms.SM4.key_size // 8
-
-        self.iv_size = self.sm4_iv_size
-        self.iv = self.sm4_iv
-
-        self.aad_size = self.sm4_aad_size
-        self.aad = self.sm4_aad
-
-        self.encryption_metadata_combination_mode = self.sm4_encryption_metadata_combination_mode
-        self.metadata_combination_separator = self.sm4_metadata_combination_separator
-
-        self.mode_class: types.SM4ModeClass = constants.SM4Mode.get_mode_class_by_member(self.mode)
-
         super().__post_init__()
+
+        key_sizes: typing.Set[int] = {key_size // 8 for key_size in algorithms.SM4.key_sizes}
+        if self.key_size not in key_sizes:
+            raise ValueError(f"Optional key sizes are {key_sizes}, but got {self.key_size}")
+
+        try:
+            self.mode_class = {
+                constants.SymmetricMode.CTR: modes.CTR,
+                constants.SymmetricMode.CBC: modes.CBC,
+                constants.SymmetricMode.GCM: modes.GCM,
+                constants.SymmetricMode.CFB: modes.CFB,
+            }[self.mode]
+
+        except KeyError:
+            raise ValueError(f"Unsupported mode: {self.mode}")
 
 
 class SM4SymmetricCipher(base.BaseSymmetricCipher):
@@ -92,7 +75,7 @@ class SM4SymmetricCipher(base.BaseSymmetricCipher):
         ciphertext_bytes: bytes = cipher_ctx.update(plaintext_bytes)
         ciphertext_bytes += cipher_ctx.finalize()
 
-        if self.config.mode == constants.SM4Mode.GCM:
+        if self.config.mode == constants.SymmetricMode.GCM:
             encryption_metadata.tag = cipher_ctx.tag
         return ciphertext_bytes
 

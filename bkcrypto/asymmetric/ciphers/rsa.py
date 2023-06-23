@@ -29,21 +29,21 @@ class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
     private_key: typing.Optional[RSA.RsaKey] = None
 
     # 加解密填充方案，默认为 `PKCS1_v1_5`
-    rsa_padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
+    padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
     # 签名方案，默认为 `PKCS1_v1_5`
-    rsa_sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
+    sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
     # 密钥长度（bit）
     # In 2017, a sufficient length is deemed to be 2048 bits.
     # 具体参考 -> https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html
-    rsa_pkey_bits: int = 2048
+    pkey_bits: int = 2048
 
     cipher_maker: types.RSACipherMaker = None
     sig_scheme_maker: types.RSASigSchemeMaker = None
 
     def __post_init__(self):
         # TODO(crayon) hashAlgo 哈希算法注入
-        self.cipher_maker = constants.RSACipherPadding.get_cipher_maker_by_member(self.rsa_padding)
-        self.sig_scheme_maker = constants.RSASigScheme.get_sig_scheme_maker_by_member(self.rsa_sig_scheme)
+        self.cipher_maker = constants.RSACipherPadding.get_cipher_maker_by_member(self.padding)
+        self.sig_scheme_maker = constants.RSASigScheme.get_sig_scheme_maker_by_member(self.sig_scheme)
 
         super().__post_init__()
 
@@ -61,7 +61,7 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
         return RSA.importKey(private_key_string)
 
     def generate_key_pair(self) -> typing.Tuple[types.PrivateKeyString, types.PublicKeyString]:
-        private_key_obj: RSA.RsaKey = RSA.generate(self.config.rsa_pkey_bits)
+        private_key_obj: RSA.RsaKey = RSA.generate(self.config.pkey_bits)
         private_key: bytes = private_key_obj.exportKey()
         public_key: bytes = private_key_obj.publickey().exportKey()
         return private_key.decode(encoding=self.config.encoding), public_key.decode(encoding=self.config.encoding)

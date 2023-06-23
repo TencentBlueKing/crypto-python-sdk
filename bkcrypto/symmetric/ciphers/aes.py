@@ -23,42 +23,24 @@ from .base import EncryptionMetadata
 @dataclass
 class AESSymmetricConfig(base.BaseSymmetricConfig):
 
-    aes_mode: constants.AESMode = constants.AESMode.CTR
-    aes_key: types.SymmetricKey = None
-    aes_key_size: int = 16
-
-    aes_enable_iv: bool = True
-    aes_iv_size: int = 16
-    aes_iv: typing.Optional[types.SymmetricIv] = None
-
-    aes_aad_size: int = 20
-    aes_aad: typing.Optional[types.SymmetricAad] = None
-    aes_enable_random_aad: bool = True
-
-    aes_encryption_metadata_combination_mode: constants.EncryptionMetadataCombinationMode = (
-        constants.EncryptionMetadataCombinationMode.BYTES
-    )
-    aes_metadata_combination_separator: str = "$bkcrypto$"
-
-    mode_class: types.SM4ModeClass = None
+    mode_class: types.AESModeClass = None
 
     def __post_init__(self):
-        self.mode = self.aes_mode
-        self.key = self.aes_key
-        self.key_size = self.aes_key_size
-
-        self.iv_size = self.aes_iv_size
-        self.iv = self.aes_iv
-
-        self.aad_size = self.aes_aad_size
-        self.aad = self.aes_aad
-
-        self.encryption_metadata_combination_mode = self.aes_encryption_metadata_combination_mode
-        self.metadata_combination_separator = self.aes_metadata_combination_separator
-
-        self.mode_class: types.AESModeClass = constants.AESMode.get_mode_class_by_member(self.mode)
-
         super().__post_init__()
+
+        if self.key_size not in AES.key_size:
+            raise ValueError(f"Optional key sizes are {AES.key_size}, but got {self.key_size}")
+
+        try:
+            self.mode_class = {
+                constants.SymmetricMode.CTR: AES.MODE_CTR,
+                constants.SymmetricMode.CBC: AES.MODE_CBC,
+                constants.SymmetricMode.GCM: AES.MODE_GCM,
+                constants.SymmetricMode.CFB: AES.MODE_CFB,
+            }[self.mode]
+
+        except KeyError:
+            raise ValueError(f"Unsupported mode: {self.mode}")
 
 
 class AESSymmetricCipher(base.BaseSymmetricCipher):
@@ -80,7 +62,7 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
         if self.config.enable_aad:
             cipher_ctx.update(encryption_metadata.aad)
 
-        if self.config.mode == constants.AESMode.GCM:
+        if self.config.mode == constants.SymmetricMode.GCM:
             ciphertext_bytes, tag = cipher_ctx.encrypt_and_digest(plaintext_bytes)
             encryption_metadata.tag = tag
             return ciphertext_bytes
@@ -97,7 +79,7 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
         if self.config.enable_aad:
             cipher_ctx.update(encryption_metadata.aad)
 
-        if self.config.mode == constants.AESMode.GCM:
+        if self.config.mode == constants.SymmetricMode.GCM:
             plaintext_bytes: bytes = cipher_ctx.decrypt_and_verify(ciphertext_bytes, encryption_metadata.tag)
             return plaintext_bytes
         else:

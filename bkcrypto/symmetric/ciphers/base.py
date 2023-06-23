@@ -35,18 +35,20 @@ class EncryptionMetadata:
 class BaseSymmetricConfig:
 
     # 块密码模式
-    mode: typing.Union[constants.AESMode, constants.SM4Mode] = constants.AESMode.CTR
+    mode: constants.SymmetricMode = constants.SymmetricMode.CTR
     # 对称加密密钥
     key: types.SymmetricKey = None
+    # 密钥长度
     key_size: int = 16
 
+    # 是否启用 iv
     enable_iv: bool = True
     # enable_random_iv = `True` 时可选，默认为 16 字节
     # 对于 CBC、CFB 和 OFB 模式：IV 的长度应与 AES 加密的分组大小相同，即 128 位（16 字节）
     # 对于 CTR 模式：IV（通常称为 nonce）的长度可以灵活设置。通常长度为 64 位到 128 位（8 - 16 字节)
     # 对于 GCM 模式：IV（通常称为 nonce）的长度通常为 96 位（12 字节）
     iv_size: int = 16
-    # 固定初始向量，为空时随机生成
+    # 固定初始向量，为空时每次加密随机生成
     iv: typing.Optional[types.SymmetricIv] = None
 
     # aad 仅 GCM 模式
@@ -54,7 +56,7 @@ class BaseSymmetricConfig:
     aad_size: int = 20
     # 是否启用 aad
     enable_aad: bool = True
-    # 生成 GCM 关联数据，为空时随机生成
+    # 生成 GCM 关联数据，为空时每次加密随机生成
     aad: typing.Optional[types.SymmetricAad] = None
 
     # encryption_metadata_combination_mode="bytes" 时，会使用该值作为 tag 的固定填充长度
@@ -65,6 +67,7 @@ class BaseSymmetricConfig:
     encryption_metadata_combination_mode: constants.EncryptionMetadataCombinationMode = (
         constants.EncryptionMetadataCombinationMode.BYTES
     )
+    # encryption_metadata_combination_mode 为 `bytes` 时所使用的分隔符
     metadata_combination_separator: str = "$bkcrypto$"
 
     encoding: str = "utf-8"
@@ -76,7 +79,8 @@ class BaseSymmetricConfig:
         if self.iv and self.enable_iv:
             self.iv_size = len(self.iv)
 
-        if self.mode.value not in [constants.AESMode.GCM.value]:
+        # 非 GCM 模式下 aad 默认关闭
+        if self.mode not in [constants.SymmetricMode.GCM]:
             self.enable_aad = False
 
         if self.aad and self.enable_aad:
@@ -106,6 +110,10 @@ class BaseSymmetricCipher:
         key: typing.Optional[typing.Union[bytes, str]] = None,
         **options,
     ):
+        """
+        :param key: 密钥，为空时随机生成，可通过 key_size 指定密钥长度
+        :param options: 配置
+        """
         options: typing.Dict[str, typing.Any] = copy.deepcopy(options)
 
         # init config
@@ -143,6 +151,12 @@ class BaseSymmetricCipher:
     def combine_encryption_metadata_with_bytes(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
+        """
+        通过字节拼接的方式在密文中携带加密元数据，携带顺序：iv + tag + aad + 密文
+        :param ciphertext_bytes: 密文
+        :param encryption_metadata: 加密元数据
+        :return:
+        """
         combination_bytes: bytes = b""
         if encryption_metadata.iv:
             combination_bytes += encryption_metadata.iv
@@ -160,6 +174,12 @@ class BaseSymmetricCipher:
     def combine_encryption_metadata_with_string_sep(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
+        """
+        通过各自编码为字符串后按特定分隔符进行拼接的方式，在密文中携带加密元数据，携带顺序：iv + tag + aad + 密文
+        :param ciphertext_bytes:
+        :param encryption_metadata:
+        :return:
+        """
         iv_str_or_none: typing.Optional[str] = None
         tag_str_or_none: typing.Optional[str] = None
         aad_str_or_none: typing.Optional[str] = None
@@ -180,6 +200,11 @@ class BaseSymmetricCipher:
         return ciphertext
 
     def extract_encryption_metadata_from_bytes(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
+        """
+        从字节串中提取密文及加密元数据
+        :param ciphertext: 密文
+        :return:
+        """
         tag_or_none: typing.Optional[types.SymmetricTag] = None
         aad_or_none: typing.Optional[types.SymmetricAad] = None
         iv_or_none: typing.Optional[types.SymmetricIv] = None
@@ -190,23 +215,29 @@ class BaseSymmetricCipher:
             iv_or_none: types.SymmetricIv = ciphertext_bytes[pointer : pointer + self.config.iv_size]
             pointer += self.config.iv_size
 
-        # 只有 GCM 模式支持 tag 和 aad
-        if self.config.mode.value in [constants.AESMode.GCM.value]:
+        # 只有 GCM 模式支持 tag
+        if self.config.mode in [constants.SymmetricMode.GCM]:
             tag_or_none = unpad(
                 ciphertext_bytes[pointer : pointer + self.config.padded_tag_size],
                 self.config.padded_tag_size,
                 style="iso7816",
             )
             pointer += self.config.padded_tag_size
-            if self.config.enable_aad:
-                aad_or_none = ciphertext_bytes[pointer : pointer + self.config.aad_size]
-                pointer += self.config.aad_size
+
+        if self.config.enable_aad:
+            aad_or_none = ciphertext_bytes[pointer : pointer + self.config.aad_size]
+            pointer += self.config.aad_size
 
         ciphertext_bytes = ciphertext_bytes[pointer:]
 
         return ciphertext_bytes, EncryptionMetadata(iv_or_none, tag_or_none, aad_or_none)
 
     def extract_encryption_metadata_from_string_sep(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
+        """
+        从字符串中提取密文及加密元数据
+        :param ciphertext:
+        :return:
+        """
 
         iv_or_none: typing.Optional[types.SymmetricIv] = None
         tag_or_none: typing.Optional[types.SymmetricTag] = None
@@ -215,13 +246,13 @@ class BaseSymmetricCipher:
         if self.config.enable_iv:
             iv_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
             iv_or_none = self.config.convertor.from_string(iv_str)
-        # 只有 GCM 模式支持 tag 和 aad
-        if self.config.mode.value in [constants.AESMode.GCM.value]:
+        # 只有 GCM 模式支持 tag
+        if self.config.mode in [constants.SymmetricMode.GCM]:
             tag_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
             tag_or_none = self.config.convertor.from_string(tag_str)
-            if self.config.enable_aad:
-                aad_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
-                aad_or_none = self.config.convertor.from_string(aad_str)
+        if self.config.enable_aad:
+            aad_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
+            aad_or_none = self.config.convertor.from_string(aad_str)
 
         ciphertext_bytes = self.config.convertor.from_string(ciphertext)
 

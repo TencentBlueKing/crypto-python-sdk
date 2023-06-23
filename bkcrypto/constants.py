@@ -12,11 +12,10 @@ specific language governing permissions and limitations under the License.
 
 from enum import Enum
 
-from Cryptodome.Cipher import AES, PKCS1_OAEP
+from Cryptodome.Cipher import PKCS1_OAEP
 from Cryptodome.Cipher import PKCS1_v1_5 as PKCS1_v1_5_cipher
 from Cryptodome.Signature import PKCS1_PSS
 from Cryptodome.Signature import PKCS1_v1_5 as PKCS1_v1_5_sig_scheme
-from tongsuopy.crypto.ciphers import modes
 
 from . import types
 
@@ -50,30 +49,13 @@ class RSASigScheme(Enum):
         return {cls.PKCS1_PSS: PKCS1_PSS, cls.PKCS1_v1_5: PKCS1_v1_5_sig_scheme}[member].new
 
 
-class AESMode(Enum):
-    """块密码模式"""
+class SymmetricMode(Enum):
+    """非对称块加密模式"""
 
     CTR = "CTR"
     CBC = "CBC"
     GCM = "GCM"
     CFB = "CFB"
-
-    @classmethod
-    def get_mode_class_by_member(cls, member: "AESMode") -> types.AESModeClass:
-        return {cls.CTR: AES.MODE_CTR, cls.CBC: AES.MODE_CBC, cls.GCM: AES.MODE_GCM, cls.CFB: AES.MODE_CFB}[member]
-
-
-class SM4Mode(Enum):
-    """块密码模式"""
-
-    CTR = "CTR"
-    CBC = "CBC"
-    GCM = "GCM"
-    CFB = "CFB"
-
-    @classmethod
-    def get_mode_class_by_member(cls, member: "SM4Mode") -> types.SM4ModeClass:
-        return {cls.CTR: modes.CTR, cls.CBC: modes.CBC, cls.GCM: modes.GCM, cls.CFB: modes.CFB}[member]
 
 
 class EncryptionMetadataCombinationMode(Enum):
