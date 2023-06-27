@@ -148,6 +148,18 @@ class BaseSymmetricCipher:
         """
         return os.urandom(self.config.aad_size)
 
+    def combine_encryption_metadata(self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> str:
+        combine_encryption_metadata_handle: typing.Callable[[bytes, EncryptionMetadata], str] = getattr(
+            self, f"combine_encryption_metadata_with_{self.config.encryption_metadata_combination_mode.value}"
+        )
+        return combine_encryption_metadata_handle(ciphertext_bytes, encryption_metadata)
+
+    def extract_encryption_metadata(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
+        extract_encryption_metadata_handle: typing.Callable[[str], typing.Tuple[bytes, EncryptionMetadata]] = getattr(
+            self, f"extract_encryption_metadata_from_{self.config.encryption_metadata_combination_mode.value}"
+        )
+        return extract_encryption_metadata_handle(ciphertext)
+
     def combine_encryption_metadata_with_bytes(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
@@ -264,7 +276,7 @@ class BaseSymmetricCipher:
         :param plaintext: 待加密的字符串
         :return: 密文
         """
-        plaintext: str = self.config.interceptor.before_encrypt(plaintext)
+        plaintext: str = self.config.interceptor.before_encrypt(plaintext, cipher=self)
         plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
 
         if not self.config.enable_iv:
@@ -283,11 +295,8 @@ class BaseSymmetricCipher:
 
         encryption_metadata: EncryptionMetadata = EncryptionMetadata(iv=iv, aad=aad)
         ciphertext_bytes = self._encrypt(plaintext_bytes, encryption_metadata)
-        combine_encryption_metadata_handle: typing.Callable[[bytes, EncryptionMetadata], str] = getattr(
-            self, f"combine_encryption_metadata_with_{self.config.encryption_metadata_combination_mode.value}"
-        )
-        ciphertext: str = combine_encryption_metadata_handle(ciphertext_bytes, encryption_metadata)
-        return self.config.interceptor.after_encrypt(ciphertext)
+        ciphertext: str = self.combine_encryption_metadata(ciphertext_bytes, encryption_metadata)
+        return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
 
     def decrypt(self, ciphertext: str) -> str:
         """
@@ -296,11 +305,8 @@ class BaseSymmetricCipher:
         :return: 解密后的信息
         """
 
-        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext)
-        extract_encryption_metadata_handle: typing.Callable[[str], typing.Tuple[bytes, EncryptionMetadata]] = getattr(
-            self, f"extract_encryption_metadata_from_{self.config.encryption_metadata_combination_mode.value}"
-        )
-        ciphertext_bytes, encryption_metadata = extract_encryption_metadata_handle(ciphertext)
+        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
+        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata(ciphertext)
         plaintext_bytes: bytes = self._decrypt(ciphertext_bytes, encryption_metadata)
         plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
-        return self.config.interceptor.after_decrypt(plaintext)
+        return self.config.interceptor.after_decrypt(plaintext, cipher=self)

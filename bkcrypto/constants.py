@@ -65,3 +65,17 @@ class EncryptionMetadataCombinationMode(Enum):
     STRING_SEP = "string_sep"
     # 字节拼接
     BYTES = "bytes"
+
+
+class SymmetricCipherType(Enum):
+    """对称加密类型"""
+
+    SM4 = "SM4"
+    AES = "AES"
+
+
+class AsymmetricCipherType(Enum):
+    """非对称加密类型"""
+
+    SM2 = "SM2"
+    RSA = "RSA"

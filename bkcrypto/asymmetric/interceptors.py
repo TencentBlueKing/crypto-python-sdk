@@ -16,14 +16,14 @@ from bkcrypto.utils import base_interceptors
 
 
 class BaseAsymmetricInterceptor(base_interceptors.BaseInterceptor):
-    @staticmethod
-    def before_sign(plaintext: str, **kwargs) -> str:
+    @classmethod
+    def before_sign(cls, plaintext: str, **kwargs) -> str:
         return plaintext
 
-    @staticmethod
-    def after_sign(signature: str, **kwargs) -> str:
+    @classmethod
+    def after_sign(cls, signature: str, **kwargs) -> str:
         return signature
 
-    @staticmethod
-    def before_verify(plaintext: str, signature: str, **kwargs) -> typing.Tuple[str, str]:
+    @classmethod
+    def before_verify(cls, plaintext: str, signature: str, **kwargs) -> typing.Tuple[str, str]:
         return plaintext, signature

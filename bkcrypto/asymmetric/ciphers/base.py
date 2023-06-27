@@ -114,10 +114,14 @@ class BaseAsymmetricCipher:
         private_key_file: typing.Optional[str] = None,
         **options,
     ):
+
         options: typing.Dict[str, typing.Any] = copy.deepcopy(options)
 
         # init config
         self.config = from_dict(self.CONFIG_DATA_CLASS, options)
+
+        if not (public_key_string and private_key_string and public_key_file and private_key_file):
+            private_key_string, public_key_string = self.generate_key_pair()
 
         public_key: typing.Optional[typing.Any] = self.load_public_key(public_key_string, public_key_file)
         private_key: typing.Optional[typing.Any] = self.load_private_key(private_key_string, private_key_file)

@@ -16,40 +16,40 @@ import base64
 
 
 class BaseConvertor(abc.ABC):
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def to_string(data: bytes, encoding: str = "utf-8", **kwargs) -> str:
+    def to_string(cls, data: bytes, encoding: str = "utf-8", **kwargs) -> str:
         raise NotImplementedError
 
-    @staticmethod
+    @classmethod
     @abc.abstractmethod
-    def from_string(string: str, **kwargs) -> bytes:
+    def from_string(cls, string: str, **kwargs) -> bytes:
         raise NotImplementedError
 
-    @staticmethod
-    def encode_plaintext(plaintext: str, encoding: str = "utf-8", **kwargs) -> bytes:
+    @classmethod
+    def encode_plaintext(cls, plaintext: str, encoding: str = "utf-8", **kwargs) -> bytes:
         return plaintext.encode(encoding=encoding)
 
-    @staticmethod
-    def decode_plaintext(plaintext_bytes: bytes, encoding: str = "utf-8", **kwargs) -> str:
+    @classmethod
+    def decode_plaintext(cls, plaintext_bytes: bytes, encoding: str = "utf-8", **kwargs) -> str:
         return plaintext_bytes.decode(encoding=encoding)
 
 
 class Base64Convertor(BaseConvertor):
-    @staticmethod
-    def to_string(data: bytes, encoding: str = "utf-8", **kwargs) -> str:
+    @classmethod
+    def to_string(cls, data: bytes, encoding: str = "utf-8", **kwargs) -> str:
         return base64.b64encode(data).decode(encoding=encoding)
 
-    @staticmethod
-    def from_string(string: str, **kwargs) -> bytes:
+    @classmethod
+    def from_string(cls, string: str, **kwargs) -> bytes:
         return base64.b64decode(string)
 
 
 class HexConvertor(BaseConvertor):
-    @staticmethod
-    def to_string(data: bytes, encoding: str = "utf-8", **kwargs) -> str:
+    @classmethod
+    def to_string(cls, data: bytes, encoding: str = "utf-8", **kwargs) -> str:
         return data.hex()
 
-    @staticmethod
-    def from_string(string: str, **kwargs) -> bytes:
+    @classmethod
+    def from_string(cls, string: str, **kwargs) -> bytes:
         return bytes.fromhex(string)
