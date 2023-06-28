@@ -38,6 +38,18 @@ class SM2AsymmetricCipher(base.BaseAsymmetricCipher):
 
     config: SM2AsymmetricRuntimeConfig = None
 
+    def export_public_key(self) -> str:
+        return self.config.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode(encoding=self.config.encoding)
+
+    def export_private_key(self) -> str:
+        return self.config.private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode(encoding=self.config.encoding)
+
     @staticmethod
     def load_public_key_from_pkey(private_key: tongsuopy_types.PRIVATE_KEY_TYPES) -> tongsuopy_types.PUBLIC_KEY_TYPES:
         return private_key.public_key()

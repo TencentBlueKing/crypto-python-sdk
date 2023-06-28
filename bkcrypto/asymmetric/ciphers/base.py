@@ -62,6 +62,14 @@ class BaseAsymmetricCipher:
     config: BaseAsymmetricRuntimeConfig = None
 
     @abc.abstractmethod
+    def export_public_key(self) -> str:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def export_private_key(self) -> str:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def _load_public_key(self, public_key_string: types.PublicKeyString):
         raise NotImplementedError
 

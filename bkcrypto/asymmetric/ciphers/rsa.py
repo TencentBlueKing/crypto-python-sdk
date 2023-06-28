@@ -49,6 +49,12 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
 
     config: RSAAsymmetricRuntimeConfig = None
 
+    def export_public_key(self) -> str:
+        return self.config.public_key.exportKey().decode(encoding=self.config.encoding)
+
+    def export_private_key(self) -> str:
+        return self.config.private_key.exportKey().decode(encoding=self.config.encoding)
+
     def _load_public_key(self, public_key_string: types.PublicKeyString) -> RSA.RsaKey:
         return RSA.importKey(public_key_string)
 
