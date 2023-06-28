@@ -18,21 +18,15 @@ import wrapt
 from dacite import from_dict
 
 from bkcrypto import constants, types
-from bkcrypto.utils import convertors
 
-from .. import interceptors
+from .. import configs
+from ..options import AsymmetricOptions
 
 
 @dataclass
-class BaseAsymmetricConfig:
+class BaseAsymmetricRuntimeConfig(configs.BaseAsymmetricConfig):
     public_key: typing.Any = None
     private_key: typing.Any = None
-    # 编码，默认为 `utf-8`
-    encoding: str = "utf-8"
-    # 字节序列转换器，默认使用 `Base64Convertor`
-    convertor: typing.Type[convertors.BaseConvertor] = convertors.Base64Convertor
-    # 拦截器，用于在加解密、签名验签操作前后添加自定义操作，默认使用 `BaseAsymmetricInterceptor`
-    interceptor: typing.Type[interceptors.BaseAsymmetricInterceptor] = interceptors.BaseAsymmetricInterceptor
 
     def __post_init__(self):
         pass
@@ -61,9 +55,11 @@ def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
 
 class BaseAsymmetricCipher:
 
-    CONFIG_DATA_CLASS: typing.Type[BaseAsymmetricConfig] = BaseAsymmetricConfig
+    CONFIG_DATA_CLASS: typing.Type[BaseAsymmetricRuntimeConfig] = BaseAsymmetricRuntimeConfig
 
-    config: BaseAsymmetricConfig = None
+    OPTIONS_DATA_CLASS: typing.Type[AsymmetricOptions] = AsymmetricOptions
+
+    config: BaseAsymmetricRuntimeConfig = None
 
     @abc.abstractmethod
     def _load_public_key(self, public_key_string: types.PublicKeyString):
@@ -120,7 +116,7 @@ class BaseAsymmetricCipher:
         # init config
         self.config = from_dict(self.CONFIG_DATA_CLASS, options)
 
-        if not (public_key_string and private_key_string and public_key_file and private_key_file):
+        if not (public_key_string or private_key_string or public_key_file or private_key_file):
             private_key_string, public_key_string = self.generate_key_pair()
 
         public_key: typing.Optional[typing.Any] = self.load_public_key(public_key_string, public_key_file)

@@ -9,9 +9,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from dataclasses import dataclass
 
-__all__ = ["BaseSymmetricCipher", "AESSymmetricCipher", "SM4SymmetricCipher"]
+from . import configs
 
-from .aes import AESSymmetricCipher
-from .base import BaseSymmetricCipher
-from .sm4 import SM4SymmetricCipher
+
+@dataclass
+class AsymmetricOptions(configs.BaseAsymmetricConfig, configs.KeyConfig):
+    pass
+
+
+@dataclass
+class RSAAsymmetricOptions(configs.BaseRSAAsymmetricConfig, AsymmetricOptions):
+    pass
+
+
+@dataclass
+class SM2AsymmetricOptions(configs.BaseSM2AsymmetricConfig, AsymmetricOptions):
+    pass

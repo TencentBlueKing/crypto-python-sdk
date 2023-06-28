@@ -20,22 +20,15 @@ from Cryptodome.PublicKey import RSA
 
 from bkcrypto import constants, types
 
+from .. import configs
+from ..options import RSAAsymmetricOptions
 from . import base
 
 
 @dataclass
-class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
+class RSAAsymmetricRuntimeConfig(configs.BaseRSAAsymmetricConfig, base.BaseAsymmetricRuntimeConfig):
     public_key: typing.Optional[RSA.RsaKey] = None
     private_key: typing.Optional[RSA.RsaKey] = None
-
-    # 加解密填充方案，默认为 `PKCS1_v1_5`
-    padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
-    # 签名方案，默认为 `PKCS1_v1_5`
-    sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
-    # 密钥长度（bit）
-    # In 2017, a sufficient length is deemed to be 2048 bits.
-    # 具体参考 -> https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html
-    pkey_bits: int = 2048
 
     cipher_maker: types.RSACipherMaker = None
     sig_scheme_maker: types.RSASigSchemeMaker = None
@@ -50,9 +43,11 @@ class RSAAsymmetricConfig(base.BaseAsymmetricConfig):
 
 class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
 
-    CONFIG_DATA_CLASS: typing.Type[base.BaseAsymmetricConfig] = RSAAsymmetricConfig
+    CONFIG_DATA_CLASS: typing.Type[RSAAsymmetricRuntimeConfig] = RSAAsymmetricRuntimeConfig
 
-    config: RSAAsymmetricConfig = None
+    OPTIONS_DATA_CLASS: typing.Type[RSAAsymmetricOptions] = RSAAsymmetricOptions
+
+    config: RSAAsymmetricRuntimeConfig = None
 
     def _load_public_key(self, public_key_string: types.PublicKeyString) -> RSA.RsaKey:
         return RSA.importKey(public_key_string)

@@ -16,12 +16,12 @@ from Cryptodome.Cipher import AES
 
 from bkcrypto import constants, types
 
+from .. import configs, options
 from . import base
-from .base import EncryptionMetadata
 
 
 @dataclass
-class AESSymmetricConfig(base.BaseSymmetricConfig):
+class AESSymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetricRuntimeConfig):
 
     mode_class: types.AESModeClass = None
 
@@ -45,14 +45,16 @@ class AESSymmetricConfig(base.BaseSymmetricConfig):
 
 class AESSymmetricCipher(base.BaseSymmetricCipher):
 
-    CONFIG_DATA_CLASS: typing.Type[AESSymmetricConfig] = AESSymmetricConfig
+    CONFIG_DATA_CLASS: typing.Type[AESSymmetricRuntimeConfig] = AESSymmetricRuntimeConfig
 
-    config: AESSymmetricConfig = None
+    OPTIONS_DATA_CLASS: typing.Type[options.AESSymmetricOptions] = options.AESSymmetricOptions
+
+    config: AESSymmetricRuntimeConfig = None
 
     def get_block_size(self) -> int:
         return self.config.key_size
 
-    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
         mode_init_args: typing.List[bytes] = []
         if self.config.enable_iv:
@@ -69,7 +71,7 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
         else:
             return cipher_ctx.encrypt(plaintext_bytes)
 
-    def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
         mode_init_args: typing.List[bytes] = []
         if self.config.enable_iv:

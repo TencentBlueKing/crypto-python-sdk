@@ -10,16 +10,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import typing
+from dataclasses import asdict
 
 from django.conf import settings
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.ciphers.base import BaseAsymmetricCipher
-from bkcrypto.asymmetric.ciphers.rsa import RSAAsymmetricCipher
-from bkcrypto.asymmetric.ciphers.sm2 import SM2AsymmetricCipher
-from bkcrypto.symmetric.ciphers.aes import AESSymmetricCipher
-from bkcrypto.symmetric.ciphers.base import BaseSymmetricCipher
-from bkcrypto.symmetric.ciphers.sm4 import SM4SymmetricCipher
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher, RSAAsymmetricCipher, SM2AsymmetricCipher
+from bkcrypto.asymmetric.options import AsymmetricOptions
+from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher, SM4SymmetricCipher
+from bkcrypto.symmetric.options import SymmetricOptions
 from bkcrypto.utils import module_loding
 
 BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = constants.AsymmetricCipherType.RSA.value
@@ -66,24 +65,40 @@ def get_symmetric_cipher_class(symmetric_cipher_type: str) -> typing.Type[BaseSy
 
 
 def get_asymmetric_cipher(
-    options: typing.Optional[typing.Dict[str, typing.Dict[str, typing.Any]]] = None
+    common: typing.Optional[typing.Dict[str, typing.Any]] = None,
+    cipher_options: typing.Optional[typing.Dict[str, typing.Optional[AsymmetricOptions]]] = None,
 ) -> BaseAsymmetricCipher:
     try:
         asymmetric_cipher_type: str = settings.BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
     except AttributeError:
         asymmetric_cipher_type: str = BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
 
-    options: typing.Dict[str, typing.Dict[str, typing.Any]] = options or {}
-    return get_asymmetric_cipher_class(asymmetric_cipher_type)(**options.get(asymmetric_cipher_type, {}))
+    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = get_asymmetric_cipher_class(asymmetric_cipher_type)
+
+    cipher_options: typing.Dict[str, typing.Optional[AsymmetricOptions]] = cipher_options or {}
+
+    options: AsymmetricOptions = (
+        cipher_options.get(asymmetric_cipher_type) or asymmetric_cipher_class.OPTIONS_DATA_CLASS()
+    )
+
+    # 同参数优先级：common > options
+    return asymmetric_cipher_class(**{**asdict(options), **common})
 
 
 def get_symmetric_cipher(
-    options: typing.Optional[typing.Dict[str, typing.Dict[str, typing.Any]]] = None
+    common: typing.Optional[typing.Dict[str, typing.Any]] = None,
+    cipher_options: typing.Optional[typing.Dict[str, typing.Optional[SymmetricOptions]]] = None,
 ) -> BaseSymmetricCipher:
     try:
         symmetric_cipher_type: str = settings.BKCRYPTO_SYMMETRIC_CIPHER_TYPE
     except AttributeError:
         symmetric_cipher_type: str = BKCRYPTO_SYMMETRIC_CIPHER_TYPE
 
-    options: typing.Dict[str, typing.Dict[str, typing.Any]] = options or {}
-    return get_symmetric_cipher_class(symmetric_cipher_type)(**options.get(symmetric_cipher_type, {}))
+    symmetric_cipher_class: typing.Type[BaseSymmetricCipher] = get_symmetric_cipher_class(symmetric_cipher_type)
+
+    cipher_options: typing.Dict[str, typing.Optional[SymmetricOptions]] = cipher_options or {}
+
+    options: SymmetricOptions = cipher_options.get(symmetric_cipher_type) or symmetric_cipher_class.OPTIONS_DATA_CLASS()
+
+    # 同参数优先级：common > options
+    return symmetric_cipher_class(**{**asdict(options), **common})

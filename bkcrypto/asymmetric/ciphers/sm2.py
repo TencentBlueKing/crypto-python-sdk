@@ -19,20 +19,24 @@ from tongsuopy.crypto.asymciphers import types as tongsuopy_types
 
 from bkcrypto import types
 
+from .. import configs
+from ..options import SM2AsymmetricOptions
 from . import base
 
 
 @dataclass
-class SM2AsymmetricConfig(base.BaseAsymmetricConfig):
+class SM2AsymmetricRuntimeConfig(configs.BaseSM2AsymmetricConfig, base.BaseAsymmetricRuntimeConfig):
     public_key: typing.Optional[tongsuopy_types.PUBLIC_KEY_TYPES] = None
     private_key: typing.Optional[tongsuopy_types.PRIVATE_KEY_TYPES] = None
 
 
 class SM2AsymmetricCipher(base.BaseAsymmetricCipher):
 
-    CONFIG_DATA_CLASS: typing.Type[base.BaseAsymmetricConfig] = SM2AsymmetricConfig
+    CONFIG_DATA_CLASS: typing.Type[SM2AsymmetricRuntimeConfig] = SM2AsymmetricRuntimeConfig
 
-    config: SM2AsymmetricConfig = None
+    OPTIONS_DATA_CLASS: typing.Type[SM2AsymmetricOptions] = SM2AsymmetricOptions
+
+    config: SM2AsymmetricRuntimeConfig = None
 
     @staticmethod
     def load_public_key_from_pkey(private_key: tongsuopy_types.PRIVATE_KEY_TYPES) -> tongsuopy_types.PUBLIC_KEY_TYPES:

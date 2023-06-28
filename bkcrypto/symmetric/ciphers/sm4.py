@@ -17,12 +17,13 @@ from tongsuopy.crypto.ciphers import AEADEncryptionContext, Cipher, CipherContex
 
 from bkcrypto import constants, types
 
+from .. import configs
+from ..options import SM4SymmetricOptions
 from . import base
-from .base import EncryptionMetadata
 
 
 @dataclass
-class SM4SymmetricConfig(base.BaseSymmetricConfig):
+class SM4SymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetricRuntimeConfig):
 
     mode_class: types.SM4ModeClass = None
 
@@ -47,9 +48,11 @@ class SM4SymmetricConfig(base.BaseSymmetricConfig):
 
 class SM4SymmetricCipher(base.BaseSymmetricCipher):
 
-    CONFIG_DATA_CLASS: typing.Type[SM4SymmetricConfig] = SM4SymmetricConfig
+    CONFIG_DATA_CLASS: typing.Type[SM4SymmetricRuntimeConfig] = SM4SymmetricRuntimeConfig
 
-    config: SM4SymmetricConfig = None
+    OPTIONS_DATA_CLASS: typing.Type[SM4SymmetricOptions] = SM4SymmetricOptions
+
+    config: SM4SymmetricRuntimeConfig = None
 
     def __init__(
         self,
@@ -63,7 +66,7 @@ class SM4SymmetricCipher(base.BaseSymmetricCipher):
     def get_block_size(self) -> int:
         return algorithms.SM4.block_size // 8
 
-    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
         mode_init_args: typing.List[bytes] = []
         if self.config.enable_iv:
@@ -79,7 +82,7 @@ class SM4SymmetricCipher(base.BaseSymmetricCipher):
             encryption_metadata.tag = cipher_ctx.tag
         return ciphertext_bytes
 
-    def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
         mode_init_args: typing.List[bytes] = []
         if self.config.enable_iv:
