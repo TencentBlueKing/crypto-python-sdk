@@ -1,42 +1,143 @@
 # BlueKing crypto-python-sdk
 
-️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on pyCryptodome / tongsuopy and other encryption libraries. It provides a unified encryption and decryption implementation, making it easy for projects to seamlessly switch between different encryption methods without any intrusion.
-
-![Python](https://badgen.net/badge/python/%3E=3.6.2,%3C3.11/green?icon=github)
-![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
-
-[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE)
-
 ---
 
-## Key Features
+![Python](https://badgen.net/badge/python/%3E=3.6.12,%3C3.11/green?icon=github)
+![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
-* [Basic] Encapsulates Cryptodome / tongsuopy and other encryption libraries, providing a unified encryption and decryption implementation
-* [Basic] Supports mainstream international cryptography algorithms: AES, RSA
-* [Basic] Supports Chinese commercial cryptography algorithms: SM2, SM4
+## Overview
 
-## Getting Started
+️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries like pyCryptodome /
+tongsuopy, providing a unified encryption implementation for Python applications, making it easy for projects to switch
+between different encryption methods without intrusion.
+
+## Features
+
+* Wrapped with Cryptodome / tongsuopy and other encryption libraries, providing a unified encryption implementation
+* Supports mainstream international cryptography algorithms: AES, RSA
+* Supports Chinese commercial cryptography algorithms: SM2, SM4
+* Asymmetric encryption support modes: CBC, CTR, GCM, CFB
+* Django Support, integrating Model Field
+
+## Getting started
 
 ### Installation
 
-Install bk-crypto using `pip`:
-
-```shell
-pip install bk-crypto
+```bash
+$ pip install bk-crypto-python-sdk
 ```
 
-### Examples
+### Usage
 
-...
+> More usage details can be referred to in the [Usage Documentation](docs/usage.md)
 
-## Versioning
+Configure in the project:
 
-...
+```python
+from bkcrypto.constants import SymmetricCipherType, AsymmetricCipherType
+
+# Asymmetric encryption type
+BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.RSA.value
+# BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.SM2.value
+# Symmetric encryption type
+BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.AES.value
+# BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.SM4.value
+```
+
+#### Asymmetric Encryption
+
+```python
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
+from bkcrypto.extends.django.ciphers import get_asymmetric_cipher
+
+asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
+
+# Encryption and decryption
+assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
+# Signature verification
+assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
+```
+
+#### Symmetric Encryption
+
+```python
+import os
+from bkcrypto import constants
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.extends.django.ciphers import get_symmetric_cipher
+from bkcrypto.symmetric.options import SM4SymmetricOptions, AESSymmetricOptions
+
+symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher(
+    common={"key": os.urandom(16)},
+    # Different encryption backends use different configurations
+    cipher_options={
+        constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
+            # Fill with 0 when not enough
+            key_size=24,
+            mode=constants.SymmetricMode.CFB,
+            # Specify a string concatenation for ciphertext
+            encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
+        ),
+        constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
+    }
+)
+
+assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
+```
+
+#### ModelField
+
+```python
+from django.db import models
+from django.conf import settings
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.extends.django.fields import SymmetricTextField
+from bkcrypto.extends.django.ciphers import get_symmetric_cipher
+
+
+def get_cipher() -> BaseSymmetricCipher:
+    return get_symmetric_cipher(common={"key": settings.BKCRYPTO_SYMMETRIC_KEY})
+
+
+class IdentityData(models.Model):
+    password = SymmetricTextField("Password", get_cipher=get_cipher, prefix="aes_str:::", blank=True, null=True)
+```
+
+## Roadmap
+
+- [Release Log](release.md)
+
+## Support
+
+- [BK Forum](https://bk.tencent.com/s-mart/community)
+- [BK DevOps Online Video Tutorial (In Chinese)](https://bk.tencent.com/s-mart/video/)
+- [Technical Exchange QQ Group](https://jq.qq.com/?_wv=1027&k=5zk8F7G)
+
+## BlueKing Community
+
+- [BK-CMDB](https://github.com/Tencent/bk-cmdb): BlueKing CMDB is an enterprise-level management platform designed for
+  assets and applications.
+- [BK-CI](https://github.com/Tencent/bk-ci): BlueKing Continuous Integration platform is a free, open source CI service,
+  which allows developers to automatically create - test - release workflow, and continuously, efficiently deliver their
+  high-quality products.
+- [BK-BCS](https://github.com/Tencent/bk-bcs): BlueKing Container Service is a container-based basic service platform
+  that provides management service to microservice businesses.
+- [BK-PaaS](https://github.com/Tencent/bk-paas): BlueKing PaaS is an open development platform that allows developers to
+  efficiently create, develop, set up, and manage SaaS apps.
+- [BK-SOPS](https://github.com/Tencent/bk-sops): BlueKing SOPS is a system that features workflow arrangement and
+  execution using a graphical interface. It's a lightweight task scheduling and arrangement SaaS product of the Blueking
+  system.
+- [BK-JOB](https://github.com/Tencent/bk-job):BlueKing JOB is a set of operation and maintenance script management
+  platform with the ability to handle a large number of tasks concurrently.
 
 ## Contributing
 
-We welcome your contributions to the bk-crypto project! Please feel free to submit issues and pull requests.
+If you have good ideas or suggestions, please let us know by Issues or Pull Requests and contribute to the Blue Whale
+Open Source Community.      
+[Tencent Open Source Incentive Program](https://opensource.tencent.com/contribution) welcome developers from all over
+the globe to contribute to Tencent Open Source projects.
 
 ## License
 
-[MIT](LICENSE)
+Based on the MIT protocol. Please refer to [LICENSE](LICENSE.txt)
