@@ -94,3 +94,7 @@ class SM2AsymmetricCipher(base.BaseAsymmetricCipher):
             return True
         except exceptions.InvalidSignature:
             return False
+
+    @staticmethod
+    def get_block_size(key_obj: typing.Any, is_encrypt: bool = True) -> typing.Optional[int]:
+        return None

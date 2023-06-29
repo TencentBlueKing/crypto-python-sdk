@@ -61,6 +61,17 @@ class BaseAsymmetricCipher:
 
     config: BaseAsymmetricRuntimeConfig = None
 
+    @staticmethod
+    @abc.abstractmethod
+    def get_block_size(key_obj: typing.Any, is_encrypt: bool = True) -> typing.Optional[int]:
+        """
+        获取加解密最大片长度，用于分割过长的文本，单位：bytes，None 表示不需要加密
+        :param key_obj:
+        :param is_encrypt:
+        :return:
+        """
+        raise NotImplementedError
+
     @abc.abstractmethod
     def export_public_key(self) -> str:
         raise NotImplementedError

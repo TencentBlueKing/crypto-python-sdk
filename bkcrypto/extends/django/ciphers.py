@@ -65,21 +65,22 @@ def get_symmetric_cipher_class(symmetric_cipher_type: str) -> typing.Type[BaseSy
 
 
 def get_asymmetric_cipher(
+    cipher_type: typing.Optional[str] = None,
     common: typing.Optional[typing.Dict[str, typing.Any]] = None,
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[AsymmetricOptions]]] = None,
 ) -> BaseAsymmetricCipher:
-    try:
-        asymmetric_cipher_type: str = settings.BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
-    except AttributeError:
-        asymmetric_cipher_type: str = BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
 
-    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = get_asymmetric_cipher_class(asymmetric_cipher_type)
+    if not cipher_type:
+        try:
+            cipher_type: str = settings.BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
+        except AttributeError:
+            cipher_type: str = BKCRYPTO_ASYMMETRIC_CIPHER_TYPE
 
+    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = get_asymmetric_cipher_class(cipher_type)
+
+    common = common or {}
     cipher_options: typing.Dict[str, typing.Optional[AsymmetricOptions]] = cipher_options or {}
-
-    options: AsymmetricOptions = (
-        cipher_options.get(asymmetric_cipher_type) or asymmetric_cipher_class.OPTIONS_DATA_CLASS()
-    )
+    options: AsymmetricOptions = cipher_options.get(cipher_type) or asymmetric_cipher_class.OPTIONS_DATA_CLASS()
 
     # 同参数优先级：common > options
     return asymmetric_cipher_class(**{**asdict(options), **common})
@@ -96,8 +97,8 @@ def get_symmetric_cipher(
 
     symmetric_cipher_class: typing.Type[BaseSymmetricCipher] = get_symmetric_cipher_class(symmetric_cipher_type)
 
+    common = common or {}
     cipher_options: typing.Dict[str, typing.Optional[SymmetricOptions]] = cipher_options or {}
-
     options: SymmetricOptions = cipher_options.get(symmetric_cipher_type) or symmetric_cipher_class.OPTIONS_DATA_CLASS()
 
     # 同参数优先级：common > options

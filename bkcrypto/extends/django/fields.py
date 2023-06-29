@@ -18,17 +18,23 @@ from bkcrypto.symmetric.ciphers.base import BaseSymmetricCipher
 
 class SymmetricFieldMixin:
 
-    cipher = None
+    cipher: BaseSymmetricCipher = None
     prefix: str = None
+    get_cipher: typing.Callable[[], BaseSymmetricCipher] = None
 
     DEFAULT_PREFIX: str = "bkcrypto:::"
+
+    def get_or_cache_cipher(self):
+        if self.cipher:
+            return self.cipher
+        self.cipher = self.get_cipher()
+        return self.cipher
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         if self.prefix != self.DEFAULT_PREFIX:
             kwargs["prefix"] = self.prefix
-        # 暂不支持 cipher 级别的数据库变更
-        del kwargs["cipher"]
+        kwargs["get_cipher"] = self.get_cipher
         return name, path, args, kwargs
 
     def from_db_value(self, value, expression, connection, context=None):
@@ -37,7 +43,11 @@ class SymmetricFieldMixin:
             return value
         if value.startswith(self.prefix):
             value = value[len(self.prefix) :]
-            value = self.cipher.decrypt(value)
+            # 解密失败时展示密文
+            try:
+                value = self.get_or_cache_cipher().decrypt(value)
+            except Exception:
+                value = value
 
         sp = super()
         if hasattr(sp, "from_db_value"):
@@ -50,7 +60,10 @@ class SymmetricFieldMixin:
             return value
         elif value.startswith(self.prefix):
             value = value[len(self.prefix) :]
-            value = self.cipher.decrypt(value)
+            try:
+                value = self.get_or_cache_cipher().decrypt(value)
+            except Exception:
+                value = value
 
         sp = super()
         if hasattr(sp, "to_python"):
@@ -66,14 +79,16 @@ class SymmetricFieldMixin:
         if hasattr(sp, "get_prep_value"):
             value = sp.get_prep_value(value)
 
-        value = self.cipher.encrypt(value)
+        value = self.get_or_cache_cipher().encrypt(value)
         value = self.prefix + value
 
         return value
 
 
 class SymmetricTextField(SymmetricFieldMixin, models.TextField):
-    def __init__(self, *args, cipher: BaseSymmetricCipher, prefix: typing.Optional[str] = None, **kwargs):
+    def __init__(
+        self, *args, get_cipher: typing.Callable[[], BaseSymmetricCipher], prefix: typing.Optional[str] = None, **kwargs
+    ):
         """
         初始化
         :param prefix: 加密串前缀
@@ -83,6 +98,7 @@ class SymmetricTextField(SymmetricFieldMixin, models.TextField):
             self.prefix = self.DEFAULT_PREFIX
         else:
             self.prefix = prefix
-        self.cipher = cipher
+
+        self.get_cipher = get_cipher
 
         super(SymmetricTextField, self).__init__(*args, **kwargs)
