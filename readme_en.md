@@ -6,19 +6,22 @@
 ![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
+[(English Documents Available)](readme_en.md)
+
 ## Overview
 
-️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries like pyCryptodome /
-tongsuopy, providing a unified encryption implementation for Python applications, making it easy for projects to switch
-between different encryption methods without intrusion.
+️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries such as pyCryptodome
+and tongsuopy, providing a unified encryption and decryption implementation for Python applications, facilitating
+non-intrusive switching between different encryption methods in projects.
 
 ## Features
 
-* Wrapped with Cryptodome / tongsuopy and other encryption libraries, providing a unified encryption implementation
-* Supports mainstream international cryptography algorithms: AES, RSA
-* Supports Chinese commercial cryptography algorithms: SM2, SM4
-* Asymmetric encryption support modes: CBC, CTR, GCM, CFB
-* Django Support, integrating Model Field
+* [Basic] Provides a unified encryption abstraction layer, docks with Cryptodome / tongsuopy and other encryption
+  libraries, and provides a unified encryption and decryption implementation.
+* [Basic] Supports mainstream international cryptography algorithms: AES, RSA.
+* [Basic] Supports Chinese commercial cryptography algorithms: SM2, SM4.
+* [Basic] Asymmetric encryption supports CBC, CTR, GCM, CFB as block cipher modes.
+* [Contrib] Django Support, integrated Django settings, ModelField.
 
 ## Getting started
 
@@ -30,83 +33,85 @@ $ pip install bk-crypto-python-sdk
 
 ### Usage
 
-> More usage details can be referred to in the [Usage Documentation](docs/usage.md)
+> For more usage, please refer to: [Usage Documentation](docs/usage.md)
 
-Configure in the project:
-
-```python
-from bkcrypto.constants import SymmetricCipherType, AsymmetricCipherType
-
-# Asymmetric encryption type
-BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.RSA.value
-# BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.SM2.value
-# Symmetric encryption type
-BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.AES.value
-# BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.SM4.value
-```
-
-#### Asymmetric Encryption
-
-```python
-from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
-from bkcrypto.extends.django.ciphers import get_asymmetric_cipher
-
-asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
-
-# Encryption and decryption
-assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
-# Signature verification
-assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
-```
-
-#### Symmetric Encryption
+Configure in the project
 
 ```python
 import os
 from bkcrypto import constants
-from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
-from bkcrypto.extends.django.ciphers import get_symmetric_cipher
-from bkcrypto.symmetric.options import SM4SymmetricOptions, AESSymmetricOptions
+from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 
-symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher(
-    common={"key": os.urandom(16)},
-    # Different encryption backends use different configurations
-    cipher_options={
-        constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
-            # Fill with 0 when not enough
-            key_size=24,
-            mode=constants.SymmetricMode.CFB,
-            # Specify a string concatenation for ciphertext
-            encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
-        ),
-        constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
+BKCRYPTO = {
+    # Declare the asymmetric encryption algorithm used in the project
+    "ASYMMETRIC_CIPHER_TYPE": constants.AsymmetricCipherType.SM2.value,
+    # Declare the symmetric encryption algorithm used in the project
+    "SYMMETRIC_CIPHER_TYPE": constants.SymmetricCipherType.SM4.value,
+    "SYMMETRIC_CIPHERS": {
+        # default - The configured symmetric encryption instance, multiple instances can be configured according to project needs
+        "default": {
+            # Optional, used when the key cannot be obtained directly in settings
+            # "get_key_config": "apps.utils.encrypt.key.get_key_config",
+            # Optional, used for ModelField, when encrypting, it carries this prefix into the database, when decrypting, it analyzes this prefix and selects the corresponding decryption algorithm
+            # ⚠️ Prefix and cipher type must correspond one-to-one, and there can be no prefix matching relationship
+            # "db_prefix_map": {
+            #     SymmetricCipherType.AES.value: "aes_str:::",
+            #     SymmetricCipherType.SM4.value: "sm4_str:::"
+            # },
+            "common": {"key": os.urandom(24)},
+            "cipher_options": {
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
+                    key_size=24,
+                    iv=os.urandom(16),
+                    mode=constants.SymmetricMode.CFB,
+                    encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
+                ),
+                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
+            }
+        },
     }
-)
+}
+```
 
+#### Asymmetric encryption
+
+```python
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
+from bkcrypto.contrib.django.ciphers import get_asymmetric_cipher
+
+asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
+
+# Encrypt and decrypt
+assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
+# Verify signature
+assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
+```
+
+#### Symmetric encryption
+
+```python
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
+
+# using - Specifies the symmetric encryption instance, the default is `default`
+symmetric_cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using="default")
 assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```
 
-#### ModelField
+#### SymmetricTextField
 
 ```python
 from django.db import models
-from django.conf import settings
-from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
-from bkcrypto.extends.django.fields import SymmetricTextField
-from bkcrypto.extends.django.ciphers import get_symmetric_cipher
-
-
-def get_cipher() -> BaseSymmetricCipher:
-    return get_symmetric_cipher(common={"key": settings.BKCRYPTO_SYMMETRIC_KEY})
+from bkcrypto.contrib.django.fields import SymmetricTextField
 
 
 class IdentityData(models.Model):
-    password = SymmetricTextField("Password", get_cipher=get_cipher, prefix="aes_str:::", blank=True, null=True)
+    password = SymmetricTextField("Password", blank=True, null=True)
 ```
 
 ## Roadmap
 
-- [Release Log](release.md)
+- [Version Log](release.md)
 
 ## Support
 
