@@ -6,7 +6,7 @@
 ![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
-[(English Documents Available)](readme_en.md)
+[(English Documents Available)](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/readme_en.md)
 
 ## Overview
 
@@ -15,11 +15,11 @@
 
 ## Features
 
-* 基于 Cryptodome / tongsuopy 等加密库进行封装，提供统一的加解密实现
-* 支持国际主流密码学算法：AES、RSA
-* 支持中国商用密码学算法：SM2、SM4
-* 非对称加密支持模式：CBC、CTR、GCM、CFB
-* Django Support，集成 Model Field
+* [Basic] 提供加密统一抽象层，对接 Cryptodome / tongsuopy 等加密库，提供统一的加解密实现
+* [Basic] 支持国际主流密码学算法：AES、RSA
+* [Basic] 支持中国商用密码学算法：SM2、SM4
+* [Basic] 非对称加密支持 CBC、CTR、GCM、CFB 作为块密码模式
+* [Contrib] Django Support，集成 Django settings、ModelField
 
 ## Getting started
 
@@ -31,26 +31,51 @@ $ pip install bk-crypto-python-sdk
 
 ### Usage
 
-> 更多用法参考：[使用文档](docs/usage.md)
+> 更多用法参考：[使用文档](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/docs/usage.md)
 
 在项目中配置
 
 ```python
-from bkcrypto.constants import SymmetricCipherType, AsymmetricCipherType
+import os
+from bkcrypto import constants
+from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 
-# 非对称加密类型
-BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.RSA.value
-# BKCRYPTO_ASYMMETRIC_CIPHER_TYPE: str = AsymmetricCipherType.SM2.value
-# 对称加密类型
-BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.AES.value
-# BKCRYPTO_SYMMETRIC_CIPHER_TYPE: str = SymmetricCipherType.SM4.value
+BKCRYPTO = {
+    # 声明项目所使用的非对称加密算法
+    "ASYMMETRIC_CIPHER_TYPE": constants.AsymmetricCipherType.SM2.value,
+    # 声明项目所使用的对称加密算法
+    "SYMMETRIC_CIPHER_TYPE": constants.SymmetricCipherType.SM4.value,
+    "SYMMETRIC_CIPHERS": {
+        # default - 所配置的对称加密实例，根据项目需要可以配置多个
+        "default": {
+            # 可选，用于在 settings 没法直接获取 key 的情况
+            # "get_key_config": "apps.utils.encrypt.key.get_key_config",
+            # 可选，用于 ModelField，加密时携带该前缀入库，解密时分析该前缀并选择相应的解密算法
+            # ⚠️ 前缀和 cipher type 必须一一对应，且不能有前缀匹配关系
+            # "db_prefix_map": {
+            #     SymmetricCipherType.AES.value: "aes_str:::",
+            #     SymmetricCipherType.SM4.value: "sm4_str:::"
+            # },
+            "common": {"key": os.urandom(24)},
+            "cipher_options": {
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
+                    key_size=24,
+                    iv=os.urandom(16),
+                    mode=constants.SymmetricMode.CFB,
+                    encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
+                ),
+                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
+            }
+        },
+    }
+}
 ```
 
 #### 非对称加密
 
 ```python
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
-from bkcrypto.extends.django.ciphers import get_asymmetric_cipher
+from bkcrypto.contrib.django.ciphers import get_asymmetric_cipher
 
 asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
 
@@ -63,51 +88,30 @@ assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sig
 #### 对称加密
 
 ```python
-import os
-from bkcrypto import constants
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
-from bkcrypto.extends.django.ciphers import get_symmetric_cipher
-from bkcrypto.symmetric.options import SM4SymmetricOptions, AESSymmetricOptions
+from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
 
-symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher(
-    common={"key": os.urandom(16)},
-    # 不同加密后端使用不同的配置
-    cipher_options={
-        constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
-            # 不足位时补 0
-            key_size=24,
-            mode=constants.SymmetricMode.CFB,
-            # 指定按字符串拼接密文
-            encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
-        ),
-        constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
-    }
-)
-
+# using - 指定对称加密实例，默认使用 `default`
+symmetric_cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using="default")
 assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```
 
-#### ModelField
+#### SymmetricTextField
 
 ```python
 from django.db import models
-from django.conf import settings
-from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
-from bkcrypto.extends.django.fields import SymmetricTextField
-from bkcrypto.extends.django.ciphers import get_symmetric_cipher
-
-
-def get_cipher() -> BaseSymmetricCipher:
-    return get_symmetric_cipher(common={"key": settings.BKCRYPTO_SYMMETRIC_KEY})
+from bkcrypto.contrib.django.fields import SymmetricTextField
 
 
 class IdentityData(models.Model):
-    password = SymmetricTextField("密码", get_cipher=get_cipher, prefix="aes_str:::", blank=True, null=True)
+    # using - 指定对称加密实例，默认使用 `default`
+    # prefix - 是否指定固定前缀，如果不为 None，密文将统一使用 prefix 作为前缀
+    password = SymmetricTextField("密码", blank=True, null=True)
 ```
 
 ## Roadmap
 
-- [版本日志](release.md)
+- [版本日志](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/release.md)
 
 ## Support
 
@@ -133,4 +137,4 @@ class IdentityData(models.Model):
 
 ## License
 
-基于 MIT 协议， 详细请参考 [LICENSE](LICENSE.txt)
+基于 MIT 协议， 详细请参考 [LICENSE](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/LICENSE.txt)

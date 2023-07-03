@@ -211,36 +211,12 @@ ciphertext = sm2_cipher.encrypt(plaintext)
 assert plaintext == sm2_cipher.decrypt(ciphertext)
 ```
 
-## 更多
 
-### ModelField
+### SymmetricTextField
 
-> 适用于 key 相对固定，可以实例化 cipher 的场景
+* using - 指定对称加密实例，默认使用 `default`
 
-```python
-# default.py
-BKCRYPTO_SYMMETRIC_CIPHERS = {
-    "default": {
-        # 可选，用于在 settings 没法直接获取 key 的情况
-        "get_key_config": "apps.node_man.models.get_key_config",
-        "common": {"key": APP_TOKEN},
-        "cipher_options": {
-            SymmetricCipherType.AES.value: AESSymmetricOptions(
-                key_size=24,
-                iv=os.urandom(16),
-                mode=SymmetricMode.CFB,
-                interceptor=Interceptor,
-                encryption_metadata_combination_mode=EncryptionMetadataCombinationMode.STRING_SEP
-            ),
-            SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=SymmetricMode.CTR)
-        }
-    },
-}
-
-password = SymmetricTextField(
-    _("密码"), using="default", prefix="aes_str:::", blank=True, null=True
-)
-```
+* prefix - 是否指定固定前缀，如果不为 None，密文将统一使用 prefix 作为前缀
 
 ## 问题
 
