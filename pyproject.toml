@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bk-crypto-python-sdk"
-version = "0.1.0"
+version = "1.0.0"
 description = "BlueKing crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries. It provides a unified encryption and decryption implementation, making it easy for projects to seamlessly switch between different encryption methods without any intrusion."
 authors = ["blueking <blueking@tencent.com>"]
 readme = "README.md"
@@ -17,6 +17,7 @@ wrapt = "^1.15.0"
 
 [tool.poetry.dev-dependencies]
 ipython = { version = "^7.34.0", python = ">=3.7" }
+pytest = { version = "^7.4.0", python = ">=3.7" }
 pyproject-flake8 = "5.0.4.post1"
 isort = "^5.5.4"
 black = "22.3.0"
