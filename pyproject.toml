@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "bk-crypto-python-sdk"
-version = "1.0.0"
-description = "BlueKing crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries. It provides a unified encryption and decryption implementation, making it easy for projects to seamlessly switch between different encryption methods without any intrusion."
+version = "1.0.1"
+description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries."
 authors = ["TencentBlueKing <contactus_bk@tencent.com>"]
 readme = "readme.md"
 packages = [

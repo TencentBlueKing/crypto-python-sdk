@@ -6,22 +6,27 @@
 ![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
-[(English Documents Available)](readme_en.md)
+![Release](https://badgen.net/github/release/TencentBlueKing/crypto-python-sdk)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/TencentBlueKing/crypto-python-sdk/pulls)
+
+[![Publish to Pypi](https://github.com/TencentBlueKing/crypto-python-sdk/actions/workflows/release.yml/badge.svg)](https://github.com/TencentBlueKing/crypto-python-sdk/actions/workflows/release.yml)
+
+[(English Documents Available)](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/readme_en.md)
 
 ## Overview
 
 ️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries such as pyCryptodome
-and tongsuopy, providing a unified encryption and decryption implementation for Python applications, facilitating
-non-intrusive switching between different encryption methods in projects.
+and tongsuopy, providing a unified encryption and decryption implementation for Python applications, making it easy for
+projects to switch between different encryption methods without intrusion.
 
 ## Features
 
-* [Basic] Provides a unified encryption abstraction layer, docks with Cryptodome / tongsuopy and other encryption
-  libraries, and provides a unified encryption and decryption implementation.
-* [Basic] Supports mainstream international cryptography algorithms: AES, RSA.
-* [Basic] Supports Chinese commercial cryptography algorithms: SM2, SM4.
-* [Basic] Asymmetric encryption supports CBC, CTR, GCM, CFB as block cipher modes.
-* [Contrib] Django Support, integrated Django settings, ModelField.
+* [Basic] Provides a unified encryption abstraction layer, docking with Cryptodome / tongsuopy and other encryption
+  libraries, providing a unified encryption and decryption implementation
+* [Basic] Supports mainstream international cryptography algorithms: AES, RSA
+* [Basic] Supports Chinese commercial cryptography algorithms: SM2, SM4
+* [Basic] Asymmetric encryption supports CBC, CTR, GCM, CFB as block cipher modes
+* [Contrib] Django Support, integrating Django settings, ModelField
 
 ## Getting started
 
@@ -33,7 +38,8 @@ $ pip install bk-crypto-python-sdk
 
 ### Usage
 
-> For more usage, please refer to: [Usage Documentation](docs/usage.md)
+> For more usage, refer
+> to: [Usage Documentation](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/docs/usage.md)
 
 Configure in the project
 
@@ -58,14 +64,11 @@ BKCRYPTO = {
             #     SymmetricCipherType.AES.value: "aes_str:::",
             #     SymmetricCipherType.SM4.value: "sm4_str:::"
             # },
-            "common": {"key": os.urandom(24)},
+            # Common parameter configuration, different cipher initialization shares these parameters
+            "common": {"key": "your key"},
             "cipher_options": {
-                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
-                    key_size=24,
-                    iv=os.urandom(16),
-                    mode=constants.SymmetricMode.CFB,
-                    encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
-                ),
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
+                # BlueKing recommended configuration
                 constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
             }
         },
@@ -93,7 +96,7 @@ assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sig
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
 from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
 
-# using - Specifies the symmetric encryption instance, the default is `default`
+# using - Specify the symmetric encryption instance, the default is `default`
 symmetric_cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using="default")
 assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```
@@ -106,12 +109,12 @@ from bkcrypto.contrib.django.fields import SymmetricTextField
 
 
 class IdentityData(models.Model):
-    password = SymmetricTextField("Password", blank=True, null=True)
+    password = SymmetricTextField("password", blank=True, null=True)
 ```
 
 ## Roadmap
 
-- [Version Log](release.md)
+- [Version Log](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/release.md)
 
 ## Support
 
