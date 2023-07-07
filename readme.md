@@ -6,6 +6,11 @@
 ![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
+![Release](https://badgen.net/github/release/TencentBlueKing/crypto-python-sdk)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/TencentBlueKing/crypto-python-sdk/pulls)
+
+[![Publish to Pypi](https://github.com/TencentBlueKing/crypto-python-sdk/actions/workflows/release.yml/badge.svg)](https://github.com/TencentBlueKing/crypto-python-sdk/actions/workflows/release.yml)
+
 [(English Documents Available)](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/readme_en.md)
 
 ## Overview
@@ -56,14 +61,11 @@ BKCRYPTO = {
             #     SymmetricCipherType.AES.value: "aes_str:::",
             #     SymmetricCipherType.SM4.value: "sm4_str:::"
             # },
-            "common": {"key": os.urandom(24)},
+            # 公共参数配置，不同 cipher 初始化时共用这部分参数
+            "common": {"key": "your key"},
             "cipher_options": {
-                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
-                    key_size=24,
-                    iv=os.urandom(16),
-                    mode=constants.SymmetricMode.CFB,
-                    encryption_metadata_combination_mode=constants.EncryptionMetadataCombinationMode.STRING_SEP
-                ),
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
+                # 蓝鲸推荐配置
                 constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
             }
         },
@@ -104,8 +106,6 @@ from bkcrypto.contrib.django.fields import SymmetricTextField
 
 
 class IdentityData(models.Model):
-    # using - 指定对称加密实例，默认使用 `default`
-    # prefix - 是否指定固定前缀，如果不为 None，密文将统一使用 prefix 作为前缀
     password = SymmetricTextField("密码", blank=True, null=True)
 ```
 

@@ -61,8 +61,11 @@ class SymmetricCipherManager:
     def __init__(self):
         self._cache: [str, BaseSymmetricCipher] = {}
 
-    def cipher(self, using: str, cipher_type: typing.Optional[str] = None) -> BaseSymmetricCipher:
+    def cipher(
+        self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None
+    ) -> BaseSymmetricCipher:
 
+        using: str = using or "default"
         if using not in crypto_settings.SYMMETRIC_CIPHERS:
             raise RuntimeError(f"Invalid using {using}")
 
