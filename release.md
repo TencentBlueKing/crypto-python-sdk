@@ -17,3 +17,10 @@
 
 * [ Improved ] The Django CipherManager.cipher "using" parameter provides "default" as the default
   value ([#10](https://github.com/TencentBlueKing/crypto-python-sdk/issues/10))
+
+  
+## 1.0.2 - 2023-07-11
+
+### Feature
+
+* [ Feature ] Add support for backward compatibility to Python v3.6.2 ([#12](https://github.com/TencentBlueKing/crypto-python-sdk/issues/12))

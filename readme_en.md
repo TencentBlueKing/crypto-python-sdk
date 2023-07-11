@@ -2,7 +2,7 @@
 
 ---
 
-![Python](https://badgen.net/badge/python/%3E=3.6.12,%3C3.11/green?icon=github)
+![Python](https://badgen.net/badge/python/%3E=3.6.2,%3C3.11/green?icon=github)
 ![Django](https://badgen.net/badge/django/%3E=3.1.5,%3C=4.2.1/yellow?icon=github)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.txt)
 
