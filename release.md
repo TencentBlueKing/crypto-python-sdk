@@ -24,3 +24,10 @@
 ### Feature
 
 * [ Feature ] Add support for backward compatibility to Python v3.6.2 ([#12](https://github.com/TencentBlueKing/crypto-python-sdk/issues/12))
+
+
+## 1.0.3 - 2023-07-19
+
+### Feature
+
+* [ Feature ] Support configuring AsymmetricCipherManager through Django settings ([#14](https://github.com/TencentBlueKing/crypto-python-sdk/issues/14))

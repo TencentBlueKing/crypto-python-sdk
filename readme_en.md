@@ -38,45 +38,60 @@ $ pip install bk-crypto-python-sdk
 
 ### Usage
 
-> For more usage, refer
+> For more usage guidelines, please refer
 > to: [Usage Documentation](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/docs/usage.md)
 
-Configure in the project
+Configure in the project:
 
 ```python
-import os
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
+from bkcrypto.asymmetric.options import RSAAsymmetricOptions
 
 BKCRYPTO = {
-    # Declare the asymmetric encryption algorithm used in the project
+    # Specify the asymmetric encryption algorithm used in the project
     "ASYMMETRIC_CIPHER_TYPE": constants.AsymmetricCipherType.SM2.value,
-    # Declare the symmetric encryption algorithm used in the project
+    # Specify the symmetric encryption algorithm used in the project
     "SYMMETRIC_CIPHER_TYPE": constants.SymmetricCipherType.SM4.value,
     "SYMMETRIC_CIPHERS": {
-        # default - The configured symmetric encryption instance, multiple instances can be configured according to project needs
+        # default - The configured symmetric encryption instance can be configured with multiple instances according to project needs
         "default": {
-            # Optional, used when the key cannot be obtained directly in settings
+            # Optional, for scenarios where the key cannot be obtained directly from settings
             # "get_key_config": "apps.utils.encrypt.key.get_key_config",
-            # Optional, used for ModelField, when encrypting, it carries this prefix into the database, when decrypting, it analyzes this prefix and selects the corresponding decryption algorithm
-            # ⚠️ Prefix and cipher type must correspond one-to-one, and there can be no prefix matching relationship
+            # Optional, used for ModelField; carry the prefix when encrypting and store it in the database,
+            #   analyze the prefix when decrypting and choose the appropriate decryption algorithm
+            # ⚠️ Prefix and cipher type must correspond one-to-one, and no prefix match relationship is allowed
             # "db_prefix_map": {
             #     SymmetricCipherType.AES.value: "aes_str:::",
             #     SymmetricCipherType.SM4.value: "sm4_str:::"
             # },
-            # Common parameter configuration, different cipher initialization shares these parameters
+            # Common parameter configuration, shared by different ciphers during initialization
             "common": {"key": "your key"},
             "cipher_options": {
                 constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
-                # BlueKing recommended configuration
+                # Recommended configuration by BlueKing
                 constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
             }
+        },
+    },
+    "ASYMMETRIC_CIPHERS": {
+        # Configuration is the same as SYMMETRIC_CIPHERS
+        "default": {
+            "common": {"public_key_string": "your key"},
+            "cipher_options": {
+                constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
+                    padding=constants.RSACipherPadding.PKCS1_OAEP
+                ),
+                constants.AsymmetricCipherType.SM2.value: SM4SymmetricOptions()
+            },
         },
     }
 }
 ```
 
-#### Asymmetric encryption
+#### Asymmetric Encryption
+
+Use `get_asymmetric_cipher` to get the `cipher`
 
 ```python
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
@@ -86,17 +101,43 @@ asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
 
 # Encrypt and decrypt
 assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
-# Verify signature
+# Signature verification
 assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
 ```
 
-#### Symmetric encryption
+Use `asymmetric_cipher_manager` to get the `BKCRYPTO.ASYMMETRIC_CIPHERS` configured `cipher`
+
+```python
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
+from bkcrypto.contrib.django.ciphers import asymmetric_cipher_manager
+
+asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(using="default")
+
+# Encrypt and decrypt
+assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
+# Signature verification
+assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
+```
+
+#### Symmetric Encryption
+
+Use `get_symmetric_cipher` to get the `cipher`
+
+```python
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.contrib.django.ciphers import get_symmetric_cipher
+
+symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher()
+assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
+```
+
+Use `symmetric_cipher_manager` to get the `BKCRYPTO.SYMMETRIC_CIPHERS` configured `cipher`
 
 ```python
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
 from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
 
-# using - Specify the symmetric encryption instance, the default is `default`
+# using - Specify the symmetric encryption instance, using `default` by default
 symmetric_cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using="default")
 assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```
