@@ -17,7 +17,7 @@ from django.test.signals import setting_changed
 
 from bkcrypto import constants
 from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher, SM2AsymmetricCipher
-from bkcrypto.contrib.django.init_configs import SymmetricCipherInitConfig
+from bkcrypto.contrib.django.init_configs import AsymmetricCipherInitConfig, CipherInitConfig, SymmetricCipherInitConfig
 from bkcrypto.symmetric.ciphers import AESSymmetricCipher, SM4SymmetricCipher
 from bkcrypto.utils import module_loding
 
@@ -40,6 +40,17 @@ DEFAULTS = {
             "db_prefix_map": {
                 constants.SymmetricCipherType.AES.value: f"{constants.SymmetricCipherType.AES.value.lower()}_str:::",
                 constants.SymmetricCipherType.SM4.value: f"{constants.SymmetricCipherType.SM4.value.lower()}_str:::",
+            },
+        },
+    },
+    "ASYMMETRIC_CIPHERS": {
+        "default": {
+            # 可选，用于在 settings 没法直接获取 key 的情况
+            "get_key_config": None,
+            # 前缀和 cipher type 必须一一对应，且不能有前缀匹配关系
+            "db_prefix_map": {
+                constants.AsymmetricCipherType.RSA.value: f"{constants.AsymmetricCipherType.RSA.value.lower()}_str:::",
+                constants.AsymmetricCipherType.SM2.value: f"{constants.AsymmetricCipherType.SM2.value.lower()}_str:::",
             },
         },
     },
@@ -107,12 +118,16 @@ class CryptoSettings:
                 for cipher_type, cipher_import_path in val.items()
             }
 
-        if attr in ["SYMMETRIC_CIPHERS"]:
-            using__init_config_map: typing.Dict[str, SymmetricCipherInitConfig] = {}
+        if attr in ["SYMMETRIC_CIPHERS", "ASYMMETRIC_CIPHERS"]:
+            using__init_config_map: typing.Dict[str, CipherInitConfig] = {}
             for using, init_config_params in val.items():
                 prefix_cipher_type_map: typing.Dict[str, str] = {}
                 db_prefix_map: typing.Dict[str, str] = init_config_params.get("db_prefix_map") or {}
-                for cipher_type in self.SYMMETRIC_CIPHER_CLASSES.keys():
+                cipher_types: typing.List[str] = [
+                    self.SYMMETRIC_CIPHER_CLASSES.keys(),
+                    self.ASYMMETRIC_CIPHER_CLASSES.keys(),
+                ][attr == "ASYMMETRIC_CIPHERS"]
+                for cipher_type in cipher_types:
                     if cipher_type in db_prefix_map:
                         prefix_cipher_type_map[db_prefix_map[cipher_type]] = cipher_type
                         continue
@@ -120,7 +135,10 @@ class CryptoSettings:
                     prefix_cipher_type_map[f"{cipher_type.lower()}_str:::"] = cipher_type
                 init_config_params["db_prefix_map"] = db_prefix_map
                 init_config_params["prefix_cipher_type_map"] = prefix_cipher_type_map
-                using__init_config_map[using] = from_dict(SymmetricCipherInitConfig, init_config_params)
+                using__init_config_map[using] = from_dict(
+                    [SymmetricCipherInitConfig, AsymmetricCipherInitConfig][attr == "ASYMMETRIC_CIPHER_CLASSES"],
+                    init_config_params,
+                )
             val = using__init_config_map
 
         # Coerce import strings into classes

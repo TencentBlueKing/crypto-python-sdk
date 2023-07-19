@@ -41,9 +41,9 @@ $ pip install bk-crypto-python-sdk
 在项目中配置
 
 ```python
-import os
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
+from bkcrypto.asymmetric.options import RSAAsymmetricOptions
 
 BKCRYPTO = {
     # 声明项目所使用的非对称加密算法
@@ -69,11 +69,25 @@ BKCRYPTO = {
                 constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
             }
         },
+    },
+    "ASYMMETRIC_CIPHERS": {
+        # 配置同 SYMMETRIC_CIPHERS
+        "default": {
+            "common": {"public_key_string": "your key"},
+            "cipher_options": {
+                constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
+                    padding=constants.RSACipherPadding.PKCS1_OAEP
+                ),
+                constants.AsymmetricCipherType.SM2.value: SM4SymmetricOptions()
+            },
+        },
     }
 }
 ```
 
 #### 非对称加密
+
+使用 `get_asymmetric_cipher` 获取 `cipher`
 
 ```python
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
@@ -87,7 +101,33 @@ assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
 assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
 ```
 
+使用 `asymmetric_cipher_manager` 获取 `BKCRYPTO.ASYMMETRIC_CIPHERS` 配置的 `cipher`
+
+```python
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
+from bkcrypto.contrib.django.ciphers import asymmetric_cipher_manager
+
+asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(using="default")
+
+# 加解密
+assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
+# 验签
+assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
+```
+
 #### 对称加密
+
+使用 `get_symmetric_cipher` 获取 `cipher`
+
+```python
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.contrib.django.ciphers import get_symmetric_cipher
+
+symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher()
+assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
+```
+
+使用 `symmetric_cipher_manager` 获取 `BKCRYPTO.SYMMETRIC_CIPHERS` 配置的 `cipher`
 
 ```python
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher

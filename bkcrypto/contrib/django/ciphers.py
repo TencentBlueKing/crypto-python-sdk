@@ -17,7 +17,7 @@ from bkcrypto.asymmetric.options import AsymmetricOptions
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
 from bkcrypto.symmetric.options import SymmetricOptions
 
-from .init_configs import SymmetricCipherInitConfig
+from .init_configs import AsymmetricCipherInitConfig, SymmetricCipherInitConfig
 from .settings import crypto_settings
 
 
@@ -80,4 +80,32 @@ class SymmetricCipherManager:
         return cipher
 
 
+class AsymmetricCipherManager:
+    _cache: typing.Optional[typing.Dict[str, BaseAsymmetricCipher]] = None
+
+    def __init__(self):
+        self._cache: [str, BaseAsymmetricCipher] = {}
+
+    def cipher(
+        self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None
+    ) -> BaseAsymmetricCipher:
+
+        using: str = using or "default"
+        if using not in crypto_settings.ASYMMETRIC_CIPHERS:
+            raise RuntimeError(f"Invalid using {using}")
+
+        cipher_type: str = cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE
+        cache_key: str = f"{using}-{cipher_type}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        init_config: AsymmetricCipherInitConfig = crypto_settings.ASYMMETRIC_CIPHERS[using]
+        cipher: BaseAsymmetricCipher = get_asymmetric_cipher(**init_config.as_get_cipher_params(cipher_type))
+        self._cache[cache_key] = cipher
+        return cipher
+
+
 symmetric_cipher_manager = SymmetricCipherManager()
+
+
+asymmetric_cipher_manager = AsymmetricCipherManager()
