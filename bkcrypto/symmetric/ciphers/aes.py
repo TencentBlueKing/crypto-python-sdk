@@ -13,6 +13,7 @@ import typing
 from dataclasses import dataclass
 
 from Cryptodome.Cipher import AES
+from Cryptodome.Util import Counter
 
 from bkcrypto import constants, types
 
@@ -54,15 +55,28 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
     def get_block_size(self) -> int:
         return self.config.key_size
 
-    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
-
+    def init_ctx(self, encryption_metadata: base.EncryptionMetadata):
         mode_init_args: typing.List[bytes] = []
-        if self.config.enable_iv:
-            mode_init_args.append(encryption_metadata.iv)
+        mode_init_kwargs: typing.Dict[str : typing.Any] = {}
 
-        cipher_ctx = AES.new(self.config.key, self.config.mode_class, *mode_init_args)
+        if self.config.enable_iv:
+            if self.config.mode == constants.SymmetricMode.CTR:
+                # Size of the counter block must match block size
+                mode_init_kwargs["counter"] = Counter.new(
+                    self.get_block_size() * 8, initial_value=int.from_bytes(encryption_metadata.iv, byteorder="big")
+                )
+            else:
+                mode_init_args.append(encryption_metadata.iv)
+
+        cipher_ctx = AES.new(self.config.key, self.config.mode_class, *mode_init_args, **mode_init_kwargs)
         if self.config.enable_aad:
             cipher_ctx.update(encryption_metadata.aad)
+
+        return cipher_ctx
+
+    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
+
+        cipher_ctx = self.init_ctx(encryption_metadata)
 
         if self.config.mode == constants.SymmetricMode.GCM:
             ciphertext_bytes, tag = cipher_ctx.encrypt_and_digest(plaintext_bytes)
@@ -73,13 +87,7 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
 
     def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
-        mode_init_args: typing.List[bytes] = []
-        if self.config.enable_iv:
-            mode_init_args.append(encryption_metadata.iv)
-
-        cipher_ctx = AES.new(self.config.key, self.config.mode_class, *mode_init_args)
-        if self.config.enable_aad:
-            cipher_ctx.update(encryption_metadata.aad)
+        cipher_ctx = self.init_ctx(encryption_metadata)
 
         if self.config.mode == constants.SymmetricMode.GCM:
             plaintext_bytes: bytes = cipher_ctx.decrypt_and_verify(ciphertext_bytes, encryption_metadata.tag)

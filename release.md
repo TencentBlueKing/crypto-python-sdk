@@ -31,3 +31,10 @@
 ### Feature
 
 * [ Feature ] Support configuring AsymmetricCipherManager through Django settings ([#14](https://github.com/TencentBlueKing/crypto-python-sdk/issues/14))
+
+
+## 1.0.4 - 2023-07-20
+
+### Fixed
+
+* [ Fixed ] Fix the issue of "Too many arguments for this mode" in AES CTR mode ([#16](https://github.com/TencentBlueKing/crypto-python-sdk/issues/16))
