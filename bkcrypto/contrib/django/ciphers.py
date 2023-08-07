@@ -9,6 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import abc
 import typing
 
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
@@ -17,7 +18,7 @@ from bkcrypto.contrib.basic import ciphers
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
 from bkcrypto.symmetric.options import SymmetricOptions
 
-from .init_configs import AsymmetricCipherInitConfig, SymmetricCipherInitConfig
+from .init_configs import CipherInitConfig
 from .settings import crypto_settings
 
 
@@ -47,54 +48,86 @@ def get_symmetric_cipher(
     )
 
 
-class SymmetricCipherManager:
-    _cache: typing.Optional[typing.Dict[str, BaseSymmetricCipher]] = None
+class BaseCipherManager(abc.ABC):
+
+    _cache: typing.Dict[str, typing.Any] = None
 
     def __init__(self):
-        self._cache: [str, BaseSymmetricCipher] = {}
+        self._cache = {}
+
+    def _get_init_config(self, using: typing.Optional[str] = None) -> CipherInitConfig:
+        using: str = using or "default"
+        init_configs: typing.Dict[str, CipherInitConfig] = self._get_init_configs_from_settings()
+        if using not in init_configs:
+            raise RuntimeError(f"Invalid using {using}")
+        return init_configs[using]
+
+    @abc.abstractmethod
+    def _get_init_configs_from_settings(self) -> typing.Dict[str, CipherInitConfig]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_cipher_type_from_settings(self) -> str:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_cipher(self, cipher_type: str, init_config: CipherInitConfig):
+        raise NotImplementedError
+
+    def _cipher(self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None):
+
+        # try to get cipher from cache
+        cipher_type: str = cipher_type or self._get_cipher_type_from_settings()
+        cache_key: str = f"{using}-{cipher_type}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        # create & cache instance
+        init_config: CipherInitConfig = self._get_init_config(using=using)
+        self._cache[cache_key] = self._get_cipher(cipher_type, init_config)
+        return self._cache[cache_key]
+
+    @abc.abstractmethod
+    def cipher(self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None):
+        raise NotImplementedError
+
+
+class SymmetricCipherManager(BaseCipherManager):
+
+    _cache: typing.Optional[typing.Dict[str, BaseSymmetricCipher]] = None
+
+    def _get_init_configs_from_settings(self) -> typing.Dict[str, CipherInitConfig]:
+        return crypto_settings.SYMMETRIC_CIPHERS
+
+    def _get_cipher_type_from_settings(self) -> str:
+        return crypto_settings.SYMMETRIC_CIPHER_TYPE
+
+    def _get_cipher(self, cipher_type: str, init_config: CipherInitConfig) -> BaseSymmetricCipher:
+        return get_symmetric_cipher(**init_config.as_get_cipher_params(cipher_type))
 
     def cipher(
         self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None
     ) -> BaseSymmetricCipher:
-
-        using: str = using or "default"
-        if using not in crypto_settings.SYMMETRIC_CIPHERS:
-            raise RuntimeError(f"Invalid using {using}")
-
-        cipher_type: str = cipher_type or crypto_settings.SYMMETRIC_CIPHER_TYPE
-        cache_key: str = f"{using}-{cipher_type}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
-        init_config: SymmetricCipherInitConfig = crypto_settings.SYMMETRIC_CIPHERS[using]
-        cipher: BaseSymmetricCipher = get_symmetric_cipher(**init_config.as_get_cipher_params(cipher_type))
-        self._cache[cache_key] = cipher
-        return cipher
+        return self._cipher(using, cipher_type)
 
 
-class AsymmetricCipherManager:
+class AsymmetricCipherManager(BaseCipherManager):
+
     _cache: typing.Optional[typing.Dict[str, BaseAsymmetricCipher]] = None
 
-    def __init__(self):
-        self._cache: [str, BaseAsymmetricCipher] = {}
+    def _get_init_configs_from_settings(self) -> typing.Dict[str, CipherInitConfig]:
+        return crypto_settings.ASYMMETRIC_CIPHERS
+
+    def _get_cipher_type_from_settings(self) -> str:
+        return crypto_settings.ASYMMETRIC_CIPHER_TYPE
+
+    def _get_cipher(self, cipher_type: str, init_config: CipherInitConfig) -> BaseAsymmetricCipher:
+        return get_asymmetric_cipher(**init_config.as_get_cipher_params(cipher_type))
 
     def cipher(
         self, using: typing.Optional[str] = None, cipher_type: typing.Optional[str] = None
     ) -> BaseAsymmetricCipher:
-
-        using: str = using or "default"
-        if using not in crypto_settings.ASYMMETRIC_CIPHERS:
-            raise RuntimeError(f"Invalid using {using}")
-
-        cipher_type: str = cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE
-        cache_key: str = f"{using}-{cipher_type}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
-        init_config: AsymmetricCipherInitConfig = crypto_settings.ASYMMETRIC_CIPHERS[using]
-        cipher: BaseAsymmetricCipher = get_asymmetric_cipher(**init_config.as_get_cipher_params(cipher_type))
-        self._cache[cache_key] = cipher
-        return cipher
+        return self._cipher(using, cipher_type)
 
 
 symmetric_cipher_manager = SymmetricCipherManager()
