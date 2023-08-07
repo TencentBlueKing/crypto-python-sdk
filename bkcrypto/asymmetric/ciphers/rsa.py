@@ -43,6 +43,8 @@ class RSAAsymmetricRuntimeConfig(configs.BaseRSAAsymmetricConfig, base.BaseAsymm
 
 class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
 
+    CIPHER_TYPE: str = constants.AsymmetricCipherType.RSA.value
+
     CONFIG_DATA_CLASS: typing.Type[RSAAsymmetricRuntimeConfig] = RSAAsymmetricRuntimeConfig
 
     OPTIONS_DATA_CLASS: typing.Type[RSAAsymmetricOptions] = RSAAsymmetricOptions

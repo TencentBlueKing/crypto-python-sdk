@@ -52,6 +52,8 @@ class BaseSymmetricRuntimeConfig(configs.BaseSymmetricConfig):
 
 class BaseSymmetricCipher:
 
+    CIPHER_TYPE: str = None
+
     CONFIG_DATA_CLASS: typing.Type[BaseSymmetricRuntimeConfig] = BaseSymmetricRuntimeConfig
 
     OPTIONS_DATA_CLASS: typing.Type[SymmetricOptions] = SymmetricOptions

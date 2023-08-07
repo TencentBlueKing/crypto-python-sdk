@@ -48,6 +48,8 @@ class SM4SymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetr
 
 class SM4SymmetricCipher(base.BaseSymmetricCipher):
 
+    CIPHER_TYPE: str = constants.SymmetricCipherType.SM4.value
+
     CONFIG_DATA_CLASS: typing.Type[SM4SymmetricRuntimeConfig] = SM4SymmetricRuntimeConfig
 
     OPTIONS_DATA_CLASS: typing.Type[SM4SymmetricOptions] = SM4SymmetricOptions
