@@ -10,10 +10,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import typing
-from dataclasses import asdict
 
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
 from bkcrypto.asymmetric.options import AsymmetricOptions
+from bkcrypto.contrib.basic import ciphers
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
 from bkcrypto.symmetric.options import SymmetricOptions
 
@@ -26,16 +26,12 @@ def get_asymmetric_cipher(
     common: typing.Optional[typing.Dict[str, typing.Any]] = None,
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[AsymmetricOptions]]] = None,
 ) -> BaseAsymmetricCipher:
-
-    cipher_type: str = cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE
-    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = crypto_settings.ASYMMETRIC_CIPHER_CLASSES[cipher_type]
-
-    common = common or {}
-    cipher_options: typing.Dict[str, typing.Optional[AsymmetricOptions]] = cipher_options or {}
-    options: AsymmetricOptions = cipher_options.get(cipher_type) or asymmetric_cipher_class.OPTIONS_DATA_CLASS()
-
-    # 同参数优先级：common > options
-    return asymmetric_cipher_class(**{**asdict(options), **common})
+    return ciphers.get_asymmetric_cipher(
+        cipher_type=cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE,
+        common=common,
+        cipher_options=cipher_options,
+        asymmetric__cipher_classes=crypto_settings.ASYMMETRIC_CIPHER_CLASSES,
+    )
 
 
 def get_symmetric_cipher(
@@ -43,16 +39,12 @@ def get_symmetric_cipher(
     common: typing.Optional[typing.Dict[str, typing.Any]] = None,
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[SymmetricOptions]]] = None,
 ) -> BaseSymmetricCipher:
-
-    cipher_type: str = cipher_type or crypto_settings.SYMMETRIC_CIPHER_TYPE
-    symmetric_cipher_class: typing.Type[BaseSymmetricCipher] = crypto_settings.SYMMETRIC_CIPHER_CLASSES[cipher_type]
-
-    common = common or {}
-    cipher_options: typing.Dict[str, typing.Optional[SymmetricOptions]] = cipher_options or {}
-    options: SymmetricOptions = cipher_options.get(cipher_type) or symmetric_cipher_class.OPTIONS_DATA_CLASS()
-
-    # 同参数优先级：common > options
-    return symmetric_cipher_class(**{**asdict(options), **common})
+    return ciphers.get_symmetric_cipher(
+        cipher_type=cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE,
+        common=common,
+        cipher_options=cipher_options,
+        symmetric_cipher_classes=crypto_settings.SYMMETRIC_CIPHER_CLASSES,
+    )
 
 
 class SymmetricCipherManager:

@@ -41,57 +41,68 @@ $ pip install bk-crypto-python-sdk
 > For more usage guidelines, please refer
 > to: [Usage Documentation](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/docs/usage.md)
 
-Configure in the project:
+
+#### 1. Basic Usage
+
+**Asymmetric Encryption**
+
+```python
+import os
+
+from bkcrypto import constants
+from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
+from bkcrypto.contrib.basic.ciphers import get_symmetric_cipher
+
+symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher(
+    cipher_type=constants.SymmetricCipherType.SM4.value,
+    common={"key": os.urandom(16)},
+)
+assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
+```
+
+**Symmetric Encryption**
+
+````python
+from bkcrypto import constants
+from bkcrypto.asymmetric import options
+from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
+from bkcrypto.contrib.basic.ciphers import get_asymmetric_cipher
+
+asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher(
+    cipher_type=constants.AsymmetricCipherType.SM2.value,
+    # Passing in None will randomly generate a key, the business can choose to pass in a key or randomly generate it according to the scenario.
+    cipher_options={
+        constants.AsymmetricCipherType.SM2.value: options.SM2AsymmetricOptions(
+            private_key_string=None
+        ),
+        constants.AsymmetricCipherType.RSA.value: options.SM2AsymmetricOptions(
+            private_key_string=None
+        ),
+    }
+)
+
+# Encrypt and Decrypt
+assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
+# Signature verification
+assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
+````
+
+#### 2. Using with Django
+
+Configure the encryption algorithm type in Django Settings
 
 ```python
 from bkcrypto import constants
-from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.asymmetric.options import RSAAsymmetricOptions
 
 BKCRYPTO = {
-    # Specify the asymmetric encryption algorithm used in the project
+    # Declare the asymmetric encryption algorithm used by the project
     "ASYMMETRIC_CIPHER_TYPE": constants.AsymmetricCipherType.SM2.value,
-    # Specify the symmetric encryption algorithm used in the project
+    # Declare the symmetric encryption algorithm used by the project
     "SYMMETRIC_CIPHER_TYPE": constants.SymmetricCipherType.SM4.value,
-    "SYMMETRIC_CIPHERS": {
-        # default - The configured symmetric encryption instance can be configured with multiple instances according to project needs
-        "default": {
-            # Optional, for scenarios where the key cannot be obtained directly from settings
-            # "get_key_config": "apps.utils.encrypt.key.get_key_config",
-            # Optional, used for ModelField; carry the prefix when encrypting and store it in the database,
-            #   analyze the prefix when decrypting and choose the appropriate decryption algorithm
-            # ⚠️ Prefix and cipher type must correspond one-to-one, and no prefix match relationship is allowed
-            # "db_prefix_map": {
-            #     SymmetricCipherType.AES.value: "aes_str:::",
-            #     SymmetricCipherType.SM4.value: "sm4_str:::"
-            # },
-            # Common parameter configuration, shared by different ciphers during initialization
-            "common": {"key": "your key"},
-            "cipher_options": {
-                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
-                # Recommended configuration by BlueKing
-                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
-            }
-        },
-    },
-    "ASYMMETRIC_CIPHERS": {
-        # Configuration is the same as SYMMETRIC_CIPHERS
-        "default": {
-            "common": {"public_key_string": "your key"},
-            "cipher_options": {
-                constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
-                    padding=constants.RSACipherPadding.PKCS1_OAEP
-                ),
-                constants.AsymmetricCipherType.SM2.value: SM4SymmetricOptions()
-            },
-        },
-    }
 }
 ```
 
-#### Asymmetric Encryption
-
-Use `get_asymmetric_cipher` to get the `cipher`
+**Asymmetric Encryption**
 
 ```python
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
@@ -99,29 +110,13 @@ from bkcrypto.contrib.django.ciphers import get_asymmetric_cipher
 
 asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher()
 
-# Encrypt and decrypt
+# Encrypt and Decrypt
 assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
 # Signature verification
 assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
 ```
 
-Use `asymmetric_cipher_manager` to get the `BKCRYPTO.ASYMMETRIC_CIPHERS` configured `cipher`
-
-```python
-from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
-from bkcrypto.contrib.django.ciphers import asymmetric_cipher_manager
-
-asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(using="default")
-
-# Encrypt and decrypt
-assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))
-# Signature verification
-assert asymmetric_cipher.verify(plaintext="123", signature=asymmetric_cipher.sign("123"))
-```
-
-#### Symmetric Encryption
-
-Use `get_symmetric_cipher` to get the `cipher`
+**Symmetric Encryption**
 
 ```python
 from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
@@ -131,27 +126,7 @@ symmetric_cipher: BaseSymmetricCipher = get_symmetric_cipher()
 assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```
 
-Use `symmetric_cipher_manager` to get the `BKCRYPTO.SYMMETRIC_CIPHERS` configured `cipher`
 
-```python
-from bkcrypto.symmetric.ciphers import BaseSymmetricCipher
-from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
-
-# using - Specify the symmetric encryption instance, using `default` by default
-symmetric_cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using="default")
-assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
-```
-
-#### SymmetricTextField
-
-```python
-from django.db import models
-from bkcrypto.contrib.django.fields import SymmetricTextField
-
-
-class IdentityData(models.Model):
-    password = SymmetricTextField("password", blank=True, null=True)
-```
 
 ## Roadmap
 

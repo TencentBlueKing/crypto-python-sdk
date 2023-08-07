@@ -46,6 +46,8 @@ class AESSymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetr
 
 class AESSymmetricCipher(base.BaseSymmetricCipher):
 
+    CIPHER_TYPE: str = constants.SymmetricCipherType.AES.value
+
     CONFIG_DATA_CLASS: typing.Type[AESSymmetricRuntimeConfig] = AESSymmetricRuntimeConfig
 
     OPTIONS_DATA_CLASS: typing.Type[options.AESSymmetricOptions] = options.AESSymmetricOptions

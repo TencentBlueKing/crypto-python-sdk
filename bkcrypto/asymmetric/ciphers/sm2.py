@@ -17,7 +17,7 @@ from tongsuopy.crypto import exceptions, hashes, serialization
 from tongsuopy.crypto.asymciphers import ec
 from tongsuopy.crypto.asymciphers import types as tongsuopy_types
 
-from bkcrypto import types
+from bkcrypto import constants, types
 
 from .. import configs
 from ..options import SM2AsymmetricOptions
@@ -31,6 +31,8 @@ class SM2AsymmetricRuntimeConfig(configs.BaseSM2AsymmetricConfig, base.BaseAsymm
 
 
 class SM2AsymmetricCipher(base.BaseAsymmetricCipher):
+
+    CIPHER_TYPE: str = constants.AsymmetricCipherType.SM2.value
 
     CONFIG_DATA_CLASS: typing.Type[SM2AsymmetricRuntimeConfig] = SM2AsymmetricRuntimeConfig
 

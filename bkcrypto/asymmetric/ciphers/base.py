@@ -55,6 +55,8 @@ def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
 
 class BaseAsymmetricCipher:
 
+    CIPHER_TYPE: str = None
+
     CONFIG_DATA_CLASS: typing.Type[BaseAsymmetricRuntimeConfig] = BaseAsymmetricRuntimeConfig
 
     OPTIONS_DATA_CLASS: typing.Type[AsymmetricOptions] = AsymmetricOptions
@@ -202,7 +204,7 @@ class BaseAsymmetricCipher:
         plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
         ciphertext_bytes: bytes = self._encrypt(plaintext_bytes)
         ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
-        return self.config.interceptor.after_encrypt(ciphertext)
+        return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt(self, ciphertext: str) -> str:
@@ -211,7 +213,7 @@ class BaseAsymmetricCipher:
         :param ciphertext: 密文
         :return: 解密后的信息
         """
-        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext)
+        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
         ciphertext_bytes: bytes = self.config.convertor.from_string(ciphertext)
         plaintext_bytes: bytes = self._decrypt(ciphertext_bytes)
         plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
