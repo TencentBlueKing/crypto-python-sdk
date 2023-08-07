@@ -1,4 +1,4 @@
-# 版本日志
+**# 版本日志
 
 ## 1.0.0 - 2023-07-03
 
@@ -38,3 +38,11 @@
 ### Fixed
 
 * [ Fixed ] Fix the issue of "Too many arguments for this mode" in AES CTR mode ([#16](https://github.com/TencentBlueKing/crypto-python-sdk/issues/16))
+
+
+## 1.1.0 - 2023-08-07
+
+### Feature
+
+* [ Feature ] Add support for non-Django projects ([#19](https://github.com/TencentBlueKing/crypto-python-sdk/issues/19))
+* [ Feature ] Add support for prefix ciphertext decryption ([#20](https://github.com/TencentBlueKing/crypto-python-sdk/issues/20))

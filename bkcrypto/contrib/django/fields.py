@@ -13,39 +13,10 @@ import typing
 
 from django.db import models
 
-from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
-from bkcrypto.contrib.django.init_configs import SymmetricCipherInitConfig
-from bkcrypto.contrib.django.settings import crypto_settings
-from bkcrypto.symmetric.ciphers.base import BaseSymmetricCipher
+from bkcrypto.contrib.django.selectors import SymmetricCipherSelectorMixin
 
 
-class SymmetricFieldMixin:
-
-    cipher: BaseSymmetricCipher = None
-
-    # 是否指定固定前缀，如果不为 None，密文将统一使用 prefix 作为前缀
-    prefix: str = None
-    # 指定对称加密实例，默认使用 `default`
-    using: str = None
-
-    def prefix_selector(self, value: str) -> typing.Tuple[bool, str, typing.Optional[str]]:
-        """
-        密文前缀匹配，用于提取可能存在的加密类型
-        :param value:
-        :return:
-        """
-        if self.prefix is not None:
-            if value.startswith(self.prefix):
-                return True, value[len(self.prefix) :], None
-            else:
-                return False, value, None
-        else:
-            init_config: SymmetricCipherInitConfig = crypto_settings.SYMMETRIC_CIPHERS[self.using]
-            for prefix, cipher_type in init_config.prefix_cipher_type_map.items():
-                if value.startswith(prefix):
-                    return True, value[len(prefix) :], cipher_type
-            return False, value, None
-
+class SymmetricFieldMixin(SymmetricCipherSelectorMixin):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         if self.prefix is not None:
@@ -63,15 +34,7 @@ class SymmetricFieldMixin:
         if value is None:
             return value
 
-        is_match, trusted_value, cipher_type = self.prefix_selector(value)
-        if is_match:
-            try:
-                cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using=self.using, cipher_type=cipher_type)
-                value = cipher.decrypt(trusted_value)
-            except Exception:
-                pass
-
-        return value
+        return self.decrypt(value)
 
     def from_db_value(self, value, expression, connection, context=None):
         """出库后解密数据"""
@@ -102,16 +65,7 @@ class SymmetricFieldMixin:
         if hasattr(sp, "get_prep_value"):
             value = sp.get_prep_value(value)
 
-        if self.prefix is not None:
-            prefix: str = self.prefix
-        else:
-            init_config: SymmetricCipherInitConfig = crypto_settings.SYMMETRIC_CIPHERS[self.using]
-            prefix: str = init_config.db_prefix_map[crypto_settings.SYMMETRIC_CIPHER_TYPE]
-
-        cipher: BaseSymmetricCipher = symmetric_cipher_manager.cipher(using=self.using)
-        value = prefix + cipher.encrypt(value)
-
-        return value
+        return self.encrypt(value)
 
 
 class SymmetricTextField(SymmetricFieldMixin, models.TextField):
