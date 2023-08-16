@@ -46,3 +46,10 @@
 
 * [ Feature ] Add support for non-Django projects ([#19](https://github.com/TencentBlueKing/crypto-python-sdk/issues/19))
 * [ Feature ] Add support for prefix ciphertext decryption ([#20](https://github.com/TencentBlueKing/crypto-python-sdk/issues/20))
+
+
+## 1.1.1 - 2023-08-16
+
+### Fixed
+
+* [ Fixed ] Fix the issue of get_symmetric_cipher has wrong default value ([#25](https://github.com/TencentBlueKing/crypto-python-sdk/issues/25))
