@@ -41,7 +41,7 @@ def get_symmetric_cipher(
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[SymmetricOptions]]] = None,
 ) -> BaseSymmetricCipher:
     return ciphers.get_symmetric_cipher(
-        cipher_type=cipher_type or crypto_settings.ASYMMETRIC_CIPHER_TYPE,
+        cipher_type=cipher_type or crypto_settings.SYMMETRIC_CIPHER_TYPE,
         common=common,
         cipher_options=cipher_options,
         symmetric_cipher_classes=crypto_settings.SYMMETRIC_CIPHER_CLASSES,

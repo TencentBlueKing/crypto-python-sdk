@@ -129,7 +129,7 @@ assert "123" == symmetric_cipher.decrypt(symmetric_cipher.encrypt("123"))
 ```python
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.asymmetric.options import RSAAsymmetricOptions
+from bkcrypto.asymmetric.options import RSAAsymmetricOptions, SM2AsymmetricOptions
 
 BKCRYPTO = {
     # 声明项目所使用的非对称加密算法
@@ -162,9 +162,9 @@ BKCRYPTO = {
             "common": {"public_key_string": "your key"},
             "cipher_options": {
                 constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
-                    padding=constants.RSACipherPadding.PKCS1_OAEP
+                    padding=constants.RSACipherPadding.PKCS1_v1_5
                 ),
-                constants.AsymmetricCipherType.SM2.value: SM4SymmetricOptions()
+                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions()
             },
         },
     }

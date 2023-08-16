@@ -132,7 +132,7 @@ Configure the encryption algorithm type in Django Settings
 ```python
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
-from bkcrypto.asymmetric.options import RSAAsymmetricOptions
+from bkcrypto.asymmetric.options import RSAAsymmetricOptions, SM2AsymmetricOptions
 
 BKCRYPTO = {
     # Declare the asymmetric encryption algorithm used by the project
@@ -167,7 +167,7 @@ BKCRYPTO = {
                 constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
                     padding=constants.RSACipherPadding.PKCS1_OAEP
                 ),
-                constants.AsymmetricCipherType.SM2.value: SM4SymmetricOptions()
+                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions()
             },
         },
     }
