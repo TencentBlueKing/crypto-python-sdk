@@ -127,6 +127,58 @@ class BaseSymmetricCipher:
         )
         return extract_encryption_metadata_handle(ciphertext)
 
+    def combine_encryption_metadata_bytes(
+        self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
+    ) -> bytes:
+        """
+        通过字节拼接的方式在密文中携带加密元数据，携带顺序：iv + tag + aad + 密文
+        :param ciphertext_bytes: 密文
+        :param encryption_metadata: 加密元数据
+        :return:
+        """
+        combination_bytes: bytes = b""
+        if encryption_metadata.iv:
+            combination_bytes += encryption_metadata.iv
+        if encryption_metadata.tag:
+            # padded_tag_size >= 2 * length(tag)，填充后长度固定为 padded_tag_size
+            combination_bytes += pad(encryption_metadata.tag, block_size=self.config.padded_tag_size, style="iso7816")
+        if encryption_metadata.aad:
+            combination_bytes += encryption_metadata.aad
+
+        combination_bytes += ciphertext_bytes
+        return combination_bytes
+
+    def extract_encryption_metadata_bytes(self, ciphertext_bytes: bytes) -> typing.Tuple[bytes, EncryptionMetadata]:
+        """
+        从字节串中提取密文及加密元数据
+        :param ciphertext_bytes: 密文
+        :return:
+        """
+        tag_or_none: typing.Optional[types.SymmetricTag] = None
+        aad_or_none: typing.Optional[types.SymmetricAad] = None
+        iv_or_none: typing.Optional[types.SymmetricIv] = None
+
+        pointer: int = 0
+        if self.config.enable_iv:
+            iv_or_none: types.SymmetricIv = ciphertext_bytes[pointer : pointer + self.config.iv_size]
+            pointer += self.config.iv_size
+
+        # 只有 GCM 模式支持 tag
+        if self.config.mode in [constants.SymmetricMode.GCM]:
+            tag_or_none = unpad(
+                ciphertext_bytes[pointer : pointer + self.config.padded_tag_size],
+                self.config.padded_tag_size,
+                style="iso7816",
+            )
+            pointer += self.config.padded_tag_size
+
+        if self.config.enable_aad:
+            aad_or_none = ciphertext_bytes[pointer : pointer + self.config.aad_size]
+            pointer += self.config.aad_size
+
+        ciphertext_bytes = ciphertext_bytes[pointer:]
+        return ciphertext_bytes, EncryptionMetadata(iv_or_none, tag_or_none, aad_or_none)
+
     def combine_encryption_metadata_with_bytes(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
@@ -277,3 +329,42 @@ class BaseSymmetricCipher:
         plaintext_bytes: bytes = self._decrypt(ciphertext_bytes, encryption_metadata)
         plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
         return self.config.interceptor.after_decrypt(plaintext, cipher=self)
+
+    def encrypt_b(self, plaintext_bytes: bytes) -> bytes:
+        """
+        加密
+        :param plaintext_bytes: 待加密的信息
+        :return: 密文
+        """
+        plaintext_bytes: bytes = self.config.interceptor.before_encrypt_b(plaintext_bytes, cipher=self)
+
+        if not self.config.enable_iv:
+            iv = None
+        elif self.config.iv:
+            iv = self.config.iv
+        else:
+            iv = self.generate_iv()
+
+        if not self.config.enable_aad:
+            aad = None
+        elif self.config.aad:
+            aad = self.config.aad
+        else:
+            aad = self.generate_aad()
+
+        encryption_metadata: EncryptionMetadata = EncryptionMetadata(iv=iv, aad=aad)
+        ciphertext_bytes = self._encrypt(plaintext_bytes, encryption_metadata)
+        ciphertext_bytes: bytes = self.combine_encryption_metadata_bytes(ciphertext_bytes, encryption_metadata)
+        return self.config.interceptor.after_encrypt_b(ciphertext_bytes, cipher=self)
+
+    def decrypt_b(self, ciphertext_bytes: bytes) -> bytes:
+        """
+        解密
+        :param ciphertext_bytes: 密文
+        :return: 解密后的信息
+        """
+
+        ciphertext_bytes: bytes = self.config.interceptor.before_decrypt_b(ciphertext_bytes, cipher=self)
+        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata_bytes(ciphertext_bytes)
+        plaintext_bytes: bytes = self._decrypt(ciphertext_bytes, encryption_metadata)
+        return plaintext_bytes

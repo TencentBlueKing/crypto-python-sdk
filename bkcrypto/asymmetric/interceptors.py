@@ -27,3 +27,15 @@ class BaseAsymmetricInterceptor(base_interceptors.BaseInterceptor):
     @classmethod
     def before_verify(cls, plaintext: str, signature: str, **kwargs) -> typing.Tuple[str, str]:
         return plaintext, signature
+
+    @classmethod
+    def before_sign_b(cls, plaintext_bytes: bytes, **kwargs) -> bytes:
+        return plaintext_bytes
+
+    @classmethod
+    def after_sign_b(cls, signature: bytes, **kwargs) -> bytes:
+        return signature
+
+    @classmethod
+    def before_verify_b(cls, plaintext_bytes: bytes, signature_bytes: bytes, **kwargs) -> typing.Tuple[bytes, bytes]:
+        return plaintext_bytes, signature_bytes
