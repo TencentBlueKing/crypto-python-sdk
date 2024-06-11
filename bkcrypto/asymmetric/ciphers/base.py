@@ -219,6 +219,28 @@ class BaseAsymmetricCipher:
         plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
         return self.config.interceptor.after_decrypt(plaintext)
 
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
+    def encrypt_b(self, plaintext_bytes: bytes) -> bytes:
+        """
+        加密
+        :param plaintext_bytes: 待加密的信息
+        :return: 密文
+        """
+        plaintext_bytes: bytes = self.config.interceptor.before_encrypt_b(plaintext_bytes)
+        ciphertext_bytes: bytes = self._encrypt(plaintext_bytes)
+        return self.config.interceptor.after_encrypt_b(ciphertext_bytes, cipher=self)
+
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
+    def decrypt_b(self, ciphertext_bytes: bytes) -> bytes:
+        """
+        加密
+        :param ciphertext_bytes: 密文
+        :return: 解密后的信息
+        """
+        ciphertext_bytes: bytes = self.config.interceptor.before_decrypt_b(ciphertext_bytes, cipher=self)
+        plaintext_bytes: bytes = self._decrypt(ciphertext_bytes)
+        return self.config.interceptor.after_decrypt_b(plaintext_bytes)
+
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def sign(self, plaintext: str) -> str:
         """
@@ -243,6 +265,28 @@ class BaseAsymmetricCipher:
         plaintext, signature = self.config.interceptor.before_verify(plaintext, signature)
         plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
         signature_bytes: bytes = self.config.convertor.from_string(signature)
+        return self._verify(plaintext_bytes, signature_bytes)
+
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
+    def sign_b(self, plaintext_bytes: bytes) -> bytes:
+        """
+        根据私钥和需要发送的信息生成签名
+        :param plaintext_bytes: 需要发送给客户端的信息
+        :return:
+        """
+        plaintext_bytes: bytes = self.config.interceptor.before_sign_b(plaintext_bytes)
+        signature_types: bytes = self._sign(plaintext_bytes)
+        return self.config.interceptor.after_sign_b(signature_types)
+
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
+    def verify_b(self, plaintext_bytes: bytes, signature_bytes: bytes) -> bool:
+        """
+        使用公钥验证签名
+        :param plaintext_bytes: 客户端接受的信息
+        :param signature_bytes: 签名
+        :return:
+        """
+        plaintext_bytes, signature_bytes = self.config.interceptor.before_verify_b(plaintext_bytes, signature_bytes)
         return self._verify(plaintext_bytes, signature_bytes)
 
     @staticmethod

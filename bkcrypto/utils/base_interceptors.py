@@ -27,3 +27,19 @@ class BaseInterceptor:
     @classmethod
     def after_decrypt(cls, plaintext: str, **kwargs) -> str:
         return plaintext
+
+    @classmethod
+    def before_encrypt_b(cls, plaintext_bytes: bytes, **kwargs) -> bytes:
+        return plaintext_bytes
+
+    @classmethod
+    def after_encrypt_b(cls, plaintext_bytes: bytes, **kwargs) -> bytes:
+        return plaintext_bytes
+
+    @classmethod
+    def before_decrypt_b(cls, ciphertext_bytes: bytes, **kwargs) -> bytes:
+        return ciphertext_bytes
+
+    @classmethod
+    def after_decrypt_b(cls, ciphertext_bytes: bytes, **kwargs) -> bytes:
+        return ciphertext_bytes
