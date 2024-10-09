@@ -7,8 +7,9 @@ TWINE ?= twine
 # 3.8.12
 # 3.9.13
 # 3.10.5
-PYTHON_VERSION ?= 3.10.5
-POETRY_VERSION ?= 1.1.15
+# 3.11.10
+PYTHON_VERSION ?= 3.11.10
+POETRY_VERSION ?= 1.8.2
 IMAGE_VERSION ?= "dev"
 IMAGE_REPO ?= "mirrors.tencent.com/bk-crypto-python-sdk"
 

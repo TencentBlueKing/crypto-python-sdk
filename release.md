@@ -53,3 +53,11 @@
 ### Fixed
 
 * [ Fixed ] Fix the issue of get_symmetric_cipher has wrong default value ([#25](https://github.com/TencentBlueKing/crypto-python-sdk/issues/25))
+
+
+## 2.0.0 - 2024-10-09
+
+### Feature
+
+* [ Feature ] Add support for python 3.11
+* [ Feature ] Drop support for python 3.6, 3.7

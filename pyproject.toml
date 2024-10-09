@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bk-crypto-python-sdk"
-version = "1.1.1"
+version = "2.0.0"
 description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries."
 authors = ["TencentBlueKing <contactus_bk@tencent.com>"]
 readme = "readme.md"
@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.6.2,<3.11"
+python = ">=3.8,<3.12"
 tongsuopy-crayon = "^1.0.2b5"
 pycryptodomex = "^3.18.0"
 dacite = "^1.8.1"
