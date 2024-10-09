@@ -12,7 +12,7 @@ jobs:
       - name: Build and publish to Pypi
         uses: JRubics/poetry-publish@v1.17
         with:
-          python_version: "3.11.10"
+          python_version: "3.11.3"
           poetry_version: "==1.8.2"
           ignore_dev_requirements: "yes"
           repository_name: "bk-crypto-python-sdk"
