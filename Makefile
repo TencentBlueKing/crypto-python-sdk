@@ -9,6 +9,8 @@ TWINE ?= twine
 # 3.10.5
 # 3.11.10
 # 3.12.7
+# 3.13.5
+# 3.14.0
 PYTHON_VERSION ?= 3.12.7
 POETRY_VERSION ?= 1.8.2
 IMAGE_VERSION ?= "dev"
