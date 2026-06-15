@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bk-crypto-python-sdk"
-version = "2.0.1"
+version = "3.0.0"
 description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries."
 authors = ["TencentBlueKing <contactus_bk@tencent.com>"]
 readme = "readme.md"
@@ -9,11 +9,11 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.13"
+python = ">=3.9,<3.15"
 tongsuopy-crayon = "^1.0.2b5"
-pycryptodomex = "^3.18.0"
+pycryptodomex = "^3.20.0"
 dacite = "^1.8.1"
-wrapt = "^1.15.0"
+wrapt = "^2.2"
 
 [tool.poetry.dev-dependencies]
 ipython = { version = "^7.34.0", python = ">=3.7" }
@@ -34,7 +34,10 @@ build-backend = "poetry.core.masonry.api"
 # 平替 flake8
 # - pflake8: https://github.com/csachs/pyproject-flake8
 # - falke9: https://pypi.org/project/flake9/ (亲测无效)
-python_requires = ">= 3.7.2"
+python_requires = ">= 3.9"
+# flake8-typing-imports defaults to 3.5.0 and would flag typing.Type (TYP006);
+# pin to the real floor so those false positives go away.
+min_python_version = "3.9.0"
 ignore = "F405,W503,E203"
 max-line-length = 120
 max-complexity = 26

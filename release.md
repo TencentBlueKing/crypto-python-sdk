@@ -61,3 +61,11 @@
 
 * [ Feature ] Add support for python 3.11
 * [ Feature ] Drop support for python 3.6, 3.7
+
+
+## 3.0.0 - 2026-06-15
+
+### Feature
+
+* [ Feature ] Add support for python 3.13 and 3.14
+* [ Feature ] Drop support for python 3.8
