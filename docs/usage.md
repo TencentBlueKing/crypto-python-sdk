@@ -29,11 +29,15 @@
 
 #### BaseRSAAsymmetricConfig
 
-| 参数         | 类型                         | 描述                               |
-|------------|----------------------------|----------------------------------|
-| padding    | constants.RSACipherPadding | 加解密填充方案，默认为 `PKCS1_v1_5`         |
-| sig_scheme | constants.RSASigScheme     | 签名方案，默认为 `PKCS1_v1_5`            |
-| pkey_bits  | int                        | 密钥长度（bit），在 2017 年，2048 位被认为是足够的 |
+| 参数                          | 类型                         | 描述                                      |
+|-----------------------------|----------------------------|-----------------------------------------|
+| padding                     | constants.RSACipherPadding | 加解密填充方案，默认为 `PKCS1_v1_5`                |
+| oaep_hash                   | Hash 模块                    | OAEP 哈希算法，默认为 `SHA1`                    |
+| mgf1_hash                   | Hash 模块                    | MGF1 哈希算法，默认为 `SHA1`                    |
+| oaep_label                  | typing.Optional[bytes]     | OAEP label，默认为空                         |
+| enable_segmented_encryption | bool                       | 文本接口是否按 RSA 最大明文长度分段，默认为 `True`       |
+| sig_scheme                  | constants.RSASigScheme     | 签名方案，默认为 `PKCS1_v1_5`                   |
+| pkey_bits                   | int                        | 密钥长度（bit），默认为 2048                      |
 
 ### 对称加密
 
@@ -64,7 +68,11 @@
 
 #### BaseAESSymmetricConfig
 
-_baseAESSymmetricConfig_ 类继承自 _BaseSymmetricConfig_ 类，不包含额外参数，继承了父类的所有参数。
+_BaseAESSymmetricConfig_ 类继承自 _BaseSymmetricConfig_ 类，并增加以下参数：
+
+| 参数      | 类型                         | 描述                          |
+|---------|----------------------------|-----------------------------|
+| padding | constants.SymmetricPadding | 填充方案，默认为 `NONE`，可选 `PKCS7` |
 
 #### BaseSM4SymmetricConfig
 
@@ -92,6 +100,56 @@ _baseSM4SymmetricConfig_ 类继承自 _BaseSymmetricConfig_ 类，不包含额�
 * before_sign
 * after_sign
 * before_verify
+
+## 二进制数据与 BK-KMS 互通
+
+`encrypt_bytes()` 和 `decrypt_bytes()` 直接处理二进制明文，不执行字符串编码，也不调用文本拦截器。RSA 的二进制接口始终处理单个 RSA 分组；明文超过当前密钥和填充方案允许的长度时会抛出 `ValueError`。原有 `encrypt()` 和 `decrypt()` 文本接口仍默认启用分段，可通过 `enable_segmented_encryption=False` 关闭。
+
+与 BK-KMS SDK 的 RSA-OAEP 配置保持一致时，需要同时为 OAEP 和 MGF1 指定 SHA-256，并使用空 label：
+
+```python
+from Cryptodome.Hash import SHA256
+
+from bkcrypto import constants
+from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher
+
+rsa_cipher = RSAAsymmetricCipher(
+    padding=constants.RSACipherPadding.PKCS1_OAEP,
+    oaep_hash=SHA256,
+    mgf1_hash=SHA256,
+    oaep_label=None,
+    enable_segmented_encryption=False,
+)
+
+plaintext = b"\x00\xffbinary data"
+ciphertext = rsa_cipher.encrypt_bytes(plaintext)
+assert rsa_cipher.decrypt_bytes(ciphertext) == plaintext
+```
+
+示例会临时生成 RSA 密钥对。实际互通时，加密方传入 BK-KMS 导出的 PEM 公钥，解密方传入对应的 PKCS#1 或 PKCS#8 PEM 私钥。
+
+AES-CBC 使用 PKCS#7 填充，AES-CTR 不填充。两种模式的 IV 都必须是 16 字节；未传入固定 IV 时，加密结果会携带随机 IV：
+
+```python
+from bkcrypto import constants
+from bkcrypto.symmetric.ciphers import AESSymmetricCipher
+
+aes_cipher = AESSymmetricCipher(
+    key=b"0123456789abcdef",
+    mode=constants.SymmetricMode.CBC,
+    padding=constants.SymmetricPadding.PKCS7,
+)
+
+plaintext = b"\x00\xffbinary data"
+ciphertext = aes_cipher.encrypt_bytes(plaintext)
+assert aes_cipher.decrypt_bytes(ciphertext) == plaintext
+```
+
+仅使用 AES、RSA 时安装基础包即可。使用 SM2、SM4 时需要安装国密 extra：
+
+```bash
+pip install "bk-crypto-python-sdk[gm]"
+```
 
 ## 扩展开发
 

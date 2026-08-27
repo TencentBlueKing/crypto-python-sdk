@@ -58,6 +58,13 @@ class SymmetricMode(Enum):
     CFB = "CFB"
 
 
+class SymmetricPadding(Enum):
+    """对称加密填充方案"""
+
+    NONE = "NONE"
+    PKCS7 = "PKCS7"
+
+
 class EncryptionMetadataCombinationMode(Enum):
     """iv、tag 携带模式"""
 

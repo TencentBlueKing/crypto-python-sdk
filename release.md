@@ -1,5 +1,14 @@
 **# 版本日志
 
+## Unreleased
+
+### Feature
+
+* [ Feature ] Add binary encryption APIs and BK-KMS-compatible RSA-OAEP SHA-256, AES-CBC PKCS#7, and AES-CTR
+  support ([#37](https://github.com/TencentBlueKing/crypto-python-sdk/issues/37))
+* [ Feature ] Make RSA segmented text encryption configurable while preserving the enabled-by-default behavior
+* [ Feature ] Make SM2 and SM4 dependencies optional through the `gm` extra
+
 ## 1.0.0 - 2023-07-03
 
 ### Feature

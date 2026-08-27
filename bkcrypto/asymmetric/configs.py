@@ -13,6 +13,8 @@ specific language governing permissions and limitations under the License.
 import typing
 from dataclasses import dataclass
 
+from Cryptodome.Hash import SHA1
+
 from bkcrypto import constants, types
 from bkcrypto.utils import convertors
 
@@ -52,6 +54,14 @@ class BaseRSAAsymmetricConfig(BaseAsymmetricConfig):
 
     # 加解密填充方案，默认为 `PKCS1_v1_5`
     padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
+    # OAEP 哈希算法，默认保留 PyCryptodome 的 SHA-1 行为
+    oaep_hash: typing.Any = SHA1
+    # MGF1 哈希算法，默认与历史 OAEP 行为一致
+    mgf1_hash: typing.Any = SHA1
+    # OAEP label，None 表示空 label
+    oaep_label: typing.Optional[bytes] = None
+    # 是否按 RSA 最大明文长度分段，默认保留历史行为
+    enable_segmented_encryption: bool = True
     # 签名方案，默认为 `PKCS1_v1_5`
     sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
     # 密钥长度（bit）

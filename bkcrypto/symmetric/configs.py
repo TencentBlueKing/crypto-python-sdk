@@ -68,7 +68,8 @@ class BaseSymmetricConfig:
 
 @dataclass
 class BaseAESSymmetricConfig(BaseSymmetricConfig):
-    pass
+    # 填充方案，默认不填充以兼容历史行为
+    padding: constants.SymmetricPadding = constants.SymmetricPadding.NONE
 
 
 @dataclass

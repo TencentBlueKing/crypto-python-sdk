@@ -15,7 +15,6 @@ from Cryptodome.Cipher.PKCS1_OAEP import PKCS1OAEP_Cipher
 from Cryptodome.Cipher.PKCS1_v1_5 import PKCS115_Cipher
 from Cryptodome.PublicKey.RSA import RsaKey
 from Cryptodome.Signature import pkcs1_15, pss
-from tongsuopy.crypto.ciphers import modes
 
 T = typing.TypeVar("T")
 
@@ -51,8 +50,6 @@ SymmetricTag = bytes
 
 SymmetricAad = bytes
 
-SM4ModeClass = typing.Union[
-    typing.Type[modes.CBC], typing.Type[modes.CTR], typing.Type[modes.CFB], typing.Type[modes.GCM]
-]
+SM4ModeClass = typing.Any
 
 AESModeClass = typing.Any

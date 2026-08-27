@@ -14,4 +14,11 @@ __all__ = ["BaseAsymmetricCipher", "RSAAsymmetricCipher", "SM2AsymmetricCipher"]
 
 from .base import BaseAsymmetricCipher
 from .rsa import RSAAsymmetricCipher
-from .sm2 import SM2AsymmetricCipher
+
+
+def __getattr__(name):
+    if name == "SM2AsymmetricCipher":
+        from .sm2 import SM2AsymmetricCipher
+
+        return SM2AsymmetricCipher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from Cryptodome.Cipher import AES
 from Cryptodome.Util import Counter
+from Cryptodome.Util.Padding import pad, unpad
 
 from bkcrypto import constants, types
 
@@ -22,7 +23,7 @@ from . import base
 
 
 @dataclass
-class AESSymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetricRuntimeConfig):
+class AESSymmetricRuntimeConfig(configs.BaseAESSymmetricConfig, base.BaseSymmetricRuntimeConfig):
 
     mode_class: types.AESModeClass = None
 
@@ -31,6 +32,9 @@ class AESSymmetricRuntimeConfig(configs.BaseSM4SymmetricConfig, base.BaseSymmetr
 
         if self.key_size not in AES.key_size:
             raise ValueError(f"Optional key sizes are {AES.key_size}, but got {self.key_size}")
+
+        if self.mode in [constants.SymmetricMode.CBC, constants.SymmetricMode.CTR] and self.iv_size != AES.block_size:
+            raise ValueError(f"AES {self.mode.value} IV must be exactly {AES.block_size} bytes")
 
         try:
             self.mode_class = {
@@ -54,14 +58,28 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
 
     config: AESSymmetricRuntimeConfig = None
 
+    def __init__(self, key: typing.Optional[typing.Union[bytes, str]] = None, **options):
+        key_bytes: typing.Optional[bytes] = (
+            key.encode(options.get("encoding", "utf-8")) if isinstance(key, str) else key
+        )
+        key_size: int = options.get("key_size", 16)
+        if key_bytes is not None and len(key_bytes) != key_size:
+            raise ValueError(f"AES key must be exactly {key_size} bytes")
+        super().__init__(key, **options)
+
     def get_block_size(self) -> int:
-        return self.config.key_size
+        return AES.block_size
 
     def init_ctx(self, encryption_metadata: base.EncryptionMetadata):
         mode_init_args: typing.List[bytes] = []
         mode_init_kwargs: typing.Dict[str : typing.Any] = {}
 
         if self.config.enable_iv:
+            if (
+                self.config.mode in [constants.SymmetricMode.CBC, constants.SymmetricMode.CTR]
+                and len(encryption_metadata.iv) != AES.block_size
+            ):
+                raise ValueError(f"AES {self.config.mode.value} IV must be exactly {AES.block_size} bytes")
             if self.config.mode == constants.SymmetricMode.CTR:
                 # Size of the counter block must match block size
                 mode_init_kwargs["counter"] = Counter.new(
@@ -80,6 +98,9 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
 
         cipher_ctx = self.init_ctx(encryption_metadata)
 
+        if self.config.mode == constants.SymmetricMode.CBC and self.config.padding == constants.SymmetricPadding.PKCS7:
+            plaintext_bytes = pad(plaintext_bytes, AES.block_size, style="pkcs7")
+
         if self.config.mode == constants.SymmetricMode.GCM:
             ciphertext_bytes, tag = cipher_ctx.encrypt_and_digest(plaintext_bytes)
             encryption_metadata.tag = tag
@@ -89,10 +110,21 @@ class AESSymmetricCipher(base.BaseSymmetricCipher):
 
     def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: base.EncryptionMetadata) -> bytes:
 
+        if self.config.mode == constants.SymmetricMode.CBC and (
+            not ciphertext_bytes or len(ciphertext_bytes) % AES.block_size
+        ):
+            raise ValueError("AES CBC ciphertext must be non-empty and block-aligned")
+
         cipher_ctx = self.init_ctx(encryption_metadata)
 
         if self.config.mode == constants.SymmetricMode.GCM:
             plaintext_bytes: bytes = cipher_ctx.decrypt_and_verify(ciphertext_bytes, encryption_metadata.tag)
             return plaintext_bytes
         else:
-            return cipher_ctx.decrypt(ciphertext_bytes)
+            plaintext_bytes: bytes = cipher_ctx.decrypt(ciphertext_bytes)
+            if (
+                self.config.mode == constants.SymmetricMode.CBC
+                and self.config.padding == constants.SymmetricPadding.PKCS7
+            ):
+                return unpad(plaintext_bytes, AES.block_size, style="pkcs7")
+            return plaintext_bytes

@@ -12,61 +12,66 @@ specific language governing permissions and limitations under the License.
 
 
 import typing
-from dataclasses import asdict
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher, RSAAsymmetricCipher, SM2AsymmetricCipher
+from bkcrypto.asymmetric.ciphers.base import BaseAsymmetricCipher
 from bkcrypto.asymmetric.options import AsymmetricOptions
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, BaseSymmetricCipher, SM4SymmetricCipher
+from bkcrypto.symmetric.ciphers.base import BaseSymmetricCipher
 from bkcrypto.symmetric.options import SymmetricOptions
+from bkcrypto.utils import module_loding
 
-SYMMETRIC_CIPHER_CLASSES: typing.Dict[str, typing.Type[BaseSymmetricCipher]] = {
-    constants.SymmetricCipherType.AES.value: AESSymmetricCipher,
-    constants.SymmetricCipherType.SM4.value: SM4SymmetricCipher,
+SYMMETRIC_CIPHER_CLASSES: typing.Dict[str, str] = {
+    constants.SymmetricCipherType.AES.value: "bkcrypto.symmetric.ciphers.aes.AESSymmetricCipher",
+    constants.SymmetricCipherType.SM4.value: "bkcrypto.symmetric.ciphers.sm4.SM4SymmetricCipher",
 }
 
 
-ASYMMETRIC_CIPHER_CLASSES: typing.Dict[str, typing.Type[BaseAsymmetricCipher]] = {
-    constants.AsymmetricCipherType.RSA.value: RSAAsymmetricCipher,
-    constants.AsymmetricCipherType.SM2.value: SM2AsymmetricCipher,
+ASYMMETRIC_CIPHER_CLASSES: typing.Dict[str, str] = {
+    constants.AsymmetricCipherType.RSA.value: "bkcrypto.asymmetric.ciphers.rsa.RSAAsymmetricCipher",
+    constants.AsymmetricCipherType.SM2.value: "bkcrypto.asymmetric.ciphers.sm2.SM2AsymmetricCipher",
 }
+
+
+def _load_cipher_class(cipher_type: str, cipher_classes: typing.Dict[str, typing.Any]) -> typing.Type:
+    cipher_class_or_path: typing.Any = cipher_classes[cipher_type]
+    if isinstance(cipher_class_or_path, str):
+        return module_loding.import_string(cipher_class_or_path)
+    return cipher_class_or_path
 
 
 def get_asymmetric_cipher(
     cipher_type: typing.Optional[str] = None,
     common: typing.Optional[typing.Dict[str, typing.Any]] = None,
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[AsymmetricOptions]]] = None,
-    asymmetric__cipher_classes: typing.Optional[typing.Dict[str, BaseAsymmetricCipher]] = None,
+    asymmetric__cipher_classes: typing.Optional[typing.Dict[str, typing.Any]] = None,
 ) -> BaseAsymmetricCipher:
     cipher_type: str = cipher_type or constants.AsymmetricCipherType.RSA.value
-    asymmetric__cipher_classes: typing.Optional[typing.Dict[str, typing.Type[BaseAsymmetricCipher]]] = (
-        asymmetric__cipher_classes or ASYMMETRIC_CIPHER_CLASSES
+    asymmetric__cipher_classes = asymmetric__cipher_classes or ASYMMETRIC_CIPHER_CLASSES
+    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = _load_cipher_class(
+        cipher_type, asymmetric__cipher_classes
     )
-    asymmetric_cipher_class: typing.Type[BaseAsymmetricCipher] = asymmetric__cipher_classes[cipher_type]
 
     common = common or {}
     cipher_options: typing.Dict[str, typing.Optional[AsymmetricOptions]] = cipher_options or {}
     options: AsymmetricOptions = cipher_options.get(cipher_type) or asymmetric_cipher_class.OPTIONS_DATA_CLASS()
 
     # 同参数优先级：common > options
-    return asymmetric_cipher_class(**{**asdict(options), **common})
+    return asymmetric_cipher_class(**{**vars(options), **common})
 
 
 def get_symmetric_cipher(
     cipher_type: typing.Optional[str] = None,
     common: typing.Optional[typing.Dict[str, typing.Any]] = None,
     cipher_options: typing.Optional[typing.Dict[str, typing.Optional[SymmetricOptions]]] = None,
-    symmetric_cipher_classes: typing.Optional[typing.Dict[str, BaseSymmetricCipher]] = None,
+    symmetric_cipher_classes: typing.Optional[typing.Dict[str, typing.Any]] = None,
 ) -> BaseSymmetricCipher:
     cipher_type: str = cipher_type or constants.SymmetricCipherType.AES.value
-    symmetric_cipher_classes: typing.Optional[typing.Dict[str, typing.Type[BaseSymmetricCipher]]] = (
-        symmetric_cipher_classes or SYMMETRIC_CIPHER_CLASSES
-    )
-    symmetric_cipher_class: typing.Type[BaseSymmetricCipher] = symmetric_cipher_classes[cipher_type]
+    symmetric_cipher_classes = symmetric_cipher_classes or SYMMETRIC_CIPHER_CLASSES
+    symmetric_cipher_class: typing.Type[BaseSymmetricCipher] = _load_cipher_class(cipher_type, symmetric_cipher_classes)
 
     common = common or {}
     cipher_options: typing.Dict[str, typing.Optional[SymmetricOptions]] = cipher_options or {}
     options: SymmetricOptions = cipher_options.get(cipher_type) or symmetric_cipher_class.OPTIONS_DATA_CLASS()
 
     # 同参数优先级：common > options
-    return symmetric_cipher_class(**{**asdict(options), **common})
+    return symmetric_cipher_class(**{**vars(options), **common})
