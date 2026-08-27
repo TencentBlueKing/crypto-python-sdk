@@ -20,7 +20,6 @@ import typing
 from dataclasses import dataclass, field
 
 from bkcrypto import constants, types
-from Cryptodome.Util.Padding import pad, unpad
 from dacite import from_dict
 from typing_extensions import TypeAlias
 
@@ -28,6 +27,26 @@ from .. import configs
 from ..options import SymmetricOptions
 
 SymmetricConfigT = typing.TypeVar("SymmetricConfigT", bound="BaseSymmetricRuntimeConfig")
+ISO7816_MARKER = 0x80
+
+
+def _pad_iso7816(data: bytes, block_size: int) -> bytes:
+    padding_size: int = block_size - len(data) % block_size
+    return data + b"\x80" + b"\x00" * (padding_size - 1)
+
+
+def _unpad_iso7816(data: bytes, block_size: int) -> bytes:
+    if not data or len(data) % block_size:
+        raise ValueError("Padding is incorrect.")
+
+    marker_index: int = len(data) - 1
+    while marker_index >= 0 and data[marker_index] == 0:
+        marker_index -= 1
+    if marker_index < 0 or data[marker_index] != ISO7816_MARKER:
+        raise ValueError("Padding is incorrect.")
+    if len(data) - marker_index > block_size:
+        raise ValueError("Padding is incorrect.")
+    return data[:marker_index]
 
 
 @dataclass
@@ -51,7 +70,7 @@ class BaseSymmetricRuntimeConfig(configs.BaseSymmetricConfig):
             self.iv_size = len(self.iv)
 
         # 非 GCM 模式下 aad 默认关闭
-        if self.mode not in {constants.SymmetricMode.GCM}:
+        if self.mode != constants.SymmetricMode.GCM:
             self.enable_aad = False
 
         if self.aad and self.enable_aad:
@@ -173,10 +192,9 @@ class BaseSymmetricCipher(abc.ABC, typing.Generic[SymmetricConfigT]):
             combination_bytes += encryption_metadata.iv
         if encryption_metadata.tag:
             # padded_tag_size >= 2 * length(tag)，填充后长度固定为 padded_tag_size
-            combination_bytes += pad(
+            combination_bytes += _pad_iso7816(
                 encryption_metadata.tag,
                 block_size=self.config.padded_tag_size,
-                style="iso7816",
             )
         if encryption_metadata.aad:
             combination_bytes += encryption_metadata.aad
@@ -239,11 +257,10 @@ class BaseSymmetricCipher(abc.ABC, typing.Generic[SymmetricConfigT]):
             pointer += self.config.iv_size
 
         # 只有 GCM 模式支持 tag
-        if self.config.mode in {constants.SymmetricMode.GCM}:
-            tag_or_none = unpad(
+        if self.config.mode == constants.SymmetricMode.GCM:
+            tag_or_none = _unpad_iso7816(
                 ciphertext_bytes[pointer : pointer + self.config.padded_tag_size],
                 self.config.padded_tag_size,
-                style="iso7816",
             )
             pointer += self.config.padded_tag_size
 
@@ -273,7 +290,7 @@ class BaseSymmetricCipher(abc.ABC, typing.Generic[SymmetricConfigT]):
             )
             iv_or_none = self.config.convertor.from_string(iv_str)
         # 只有 GCM 模式支持 tag
-        if self.config.mode in {constants.SymmetricMode.GCM}:
+        if self.config.mode == constants.SymmetricMode.GCM:
             tag_str, ciphertext = ciphertext.split(
                 self.config.metadata_combination_separator, 1
             )

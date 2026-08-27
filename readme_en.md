@@ -15,13 +15,13 @@
 
 ## Overview
 
-️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries such as pyCryptodome
+️🔧 BlueKing crypto-python-sdk is a lightweight cryptography toolkit based on encryption libraries such as cryptography
 and tongsuopy, providing a unified encryption and decryption implementation for Python applications, making it easy for
 projects to switch between different encryption methods without intrusion.
 
 ## Features
 
-* [Basic] Provides a unified encryption abstraction layer, docking with Cryptodome / tongsuopy and other encryption
+* [Basic] Provides a unified encryption abstraction layer, docking with cryptography / tongsuopy and other encryption
   libraries, providing a unified encryption and decryption implementation
 * [Basic] Supports mainstream international cryptography algorithms: AES, RSA
 * [Basic] Supports Chinese commercial cryptography algorithms: SM2, SM4

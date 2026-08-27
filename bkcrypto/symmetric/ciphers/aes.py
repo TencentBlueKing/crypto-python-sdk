@@ -17,23 +17,35 @@ import typing
 from dataclasses import dataclass
 
 from bkcrypto import constants
-from Cryptodome.Cipher import AES
-from Cryptodome.Util import Counter
-from Cryptodome.Util.Padding import pad, unpad
+from cryptography import exceptions
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import TypeAlias
 
 from .. import configs, options
 from . import base
 
 if typing.TYPE_CHECKING:
-    # PyCryptodome's public overloads name their return types from these modules.
-    from Cryptodome.Cipher._mode_cbc import CbcMode
-    from Cryptodome.Cipher._mode_cfb import CfbMode
-    from Cryptodome.Cipher._mode_ctr import CtrMode
-    from Cryptodome.Cipher._mode_gcm import GcmMode
+    from cryptography.hazmat.decrepit.ciphers import modes as legacy_modes
+    from cryptography.hazmat.primitives.ciphers.base import (
+        AEADDecryptionContext,
+        AEADEncryptionContext,
+    )
+else:
+    try:
+        from cryptography.hazmat.decrepit.ciphers import modes as legacy_modes
+    except ImportError:
+        from cryptography.hazmat.primitives.ciphers import modes as legacy_modes
 
-AESStandardModeContext: TypeAlias = typing.Union["CtrMode", "CbcMode", "CfbMode"]
-AESModeContext: TypeAlias = typing.Union[AESStandardModeContext, "GcmMode"]
+AES_BLOCK_SIZE = 16
+AES_KEY_SIZES = (16, 24, 32)
+
+AESMode: TypeAlias = typing.Union[
+    modes.CBC,
+    modes.CTR,
+    legacy_modes.CFB8,
+    modes.GCM,
+]
 
 
 @dataclass
@@ -45,25 +57,20 @@ class AESSymmetricRuntimeConfig(
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        if self.key_size not in AES.key_size:
+        if self.key_size not in AES_KEY_SIZES:
             raise ValueError(
-                f"Optional key sizes are {AES.key_size}, but got {self.key_size}"
+                f"Optional key sizes are {AES_KEY_SIZES}, but got {self.key_size}"
             )
 
         if (
-            self.mode in {constants.SymmetricMode.CBC, constants.SymmetricMode.CTR}
-            and self.iv_size != AES.block_size
+            self.mode in constants.SymmetricMode.block_size_iv_modes()
+            and self.iv_size != AES_BLOCK_SIZE
         ):
             raise ValueError(
-                f"AES {self.mode.value} IV must be exactly {AES.block_size} bytes"
+                f"AES {self.mode.value} IV must be exactly {AES_BLOCK_SIZE} bytes"
             )
 
-        if self.mode not in {
-            constants.SymmetricMode.CTR,
-            constants.SymmetricMode.CBC,
-            constants.SymmetricMode.GCM,
-            constants.SymmetricMode.CFB,
-        }:
+        if self.mode not in constants.SymmetricMode.members():
             raise ValueError(f"Unsupported mode: {self.mode}")
 
 
@@ -98,7 +105,7 @@ class AESSymmetricCipher(base.BaseSymmetricCipher[AESSymmetricRuntimeConfig]):
 
     @staticmethod
     def get_block_size() -> int:
-        return AES.block_size
+        return AES_BLOCK_SIZE
 
     def _get_iv(
         self, encryption_metadata: base.EncryptionMetadata
@@ -109,86 +116,107 @@ class AESSymmetricCipher(base.BaseSymmetricCipher[AESSymmetricRuntimeConfig]):
         if iv is None:
             raise ValueError("AES IV is required when IV support is enabled")
         if (
-            self.config.mode
-            in {constants.SymmetricMode.CBC, constants.SymmetricMode.CTR}
-            and len(iv) != AES.block_size
+            self.config.mode in constants.SymmetricMode.block_size_iv_modes()
+            and len(iv) != AES_BLOCK_SIZE
         ):
             raise ValueError(
-                f"AES {self.config.mode.value} IV must be exactly {AES.block_size} bytes"
+                f"AES {self.config.mode.value} IV must be exactly {AES_BLOCK_SIZE} bytes"
             )
         return iv
 
-    def _create_ctx(self, iv: typing.Optional[bytes]) -> AESStandardModeContext:
-        if self.config.mode == constants.SymmetricMode.CTR:
-            if iv is None:
-                return AES.new(self.config.key, AES.MODE_CTR)
-            # Size of the counter block must match block size.
-            counter = Counter.new(
-                self.get_block_size() * 8,
-                initial_value=int.from_bytes(iv, byteorder="big"),
-            )
-            return AES.new(self.config.key, AES.MODE_CTR, counter=counter)
-        if self.config.mode == constants.SymmetricMode.CBC:
-            return AES.new(self.config.key, AES.MODE_CBC, iv)
-        return AES.new(self.config.key, AES.MODE_CFB, iv)
-
-    def _create_gcm_ctx(self, iv: typing.Optional[bytes]) -> "GcmMode":
+    def _create_cipher(
+        self, iv: typing.Optional[bytes], tag: typing.Optional[bytes] = None
+    ) -> Cipher[AESMode]:
         if iv is None:
-            return AES.new(self.config.key, AES.MODE_GCM)
-        return AES.new(self.config.key, AES.MODE_GCM, nonce=iv)
+            raise ValueError("AES IV is required")
 
-    def _init_gcm_ctx(self, encryption_metadata: base.EncryptionMetadata) -> "GcmMode":
-        cipher_ctx = self._create_gcm_ctx(self._get_iv(encryption_metadata))
-        if self.config.enable_aad:
-            aad = encryption_metadata.aad
-            if aad is None:
-                raise ValueError("AES AAD is required when AAD support is enabled")
-            cipher_ctx.update(aad)
-        return cipher_ctx
+        if self.config.mode == constants.SymmetricMode.CTR:
+            mode: AESMode = modes.CTR(iv)
+        elif self.config.mode == constants.SymmetricMode.CBC:
+            mode = modes.CBC(iv)
+        elif self.config.mode == constants.SymmetricMode.CFB:
+            # The legacy backend's CFB default uses an 8-bit segment size.
+            mode = legacy_modes.CFB8(iv)
+        else:
+            mode = modes.GCM(iv, tag)
+        return Cipher(algorithms.AES(self.config.key), mode)
 
-    def init_ctx(self, encryption_metadata: base.EncryptionMetadata) -> AESModeContext:
-        if self.config.mode == constants.SymmetricMode.GCM:
-            return self._init_gcm_ctx(encryption_metadata)
-        return self._create_ctx(self._get_iv(encryption_metadata))
+    def _get_aad(self, encryption_metadata: base.EncryptionMetadata) -> bytes:
+        if not self.config.enable_aad:
+            return b""
+        aad = encryption_metadata.aad
+        if aad is None:
+            raise ValueError("AES AAD is required when AAD support is enabled")
+        return aad
+
+    @staticmethod
+    def _pad_pkcs7(plaintext_bytes: bytes) -> bytes:
+        padder = padding.PKCS7(AES_BLOCK_SIZE * 8).padder()
+        return padder.update(plaintext_bytes) + padder.finalize()
+
+    @staticmethod
+    def _unpad_pkcs7(plaintext_bytes: bytes) -> bytes:
+        unpadder = padding.PKCS7(AES_BLOCK_SIZE * 8).unpadder()
+        try:
+            return unpadder.update(plaintext_bytes) + unpadder.finalize()
+        except ValueError as error:
+            raise ValueError("Padding is incorrect.") from error
 
     def _encrypt(
         self, plaintext_bytes: bytes, encryption_metadata: base.EncryptionMetadata
     ) -> bytes:
         if self.config.mode == constants.SymmetricMode.GCM:
-            cipher_ctx = self._init_gcm_ctx(encryption_metadata)
-            ciphertext_bytes, tag = cipher_ctx.encrypt_and_digest(plaintext_bytes)
-            encryption_metadata.tag = tag
+            cipher = self._create_cipher(self._get_iv(encryption_metadata))
+            gcm_encryptor = typing.cast("AEADEncryptionContext", cipher.encryptor())
+            gcm_encryptor.authenticate_additional_data(
+                self._get_aad(encryption_metadata)
+            )
+            ciphertext_bytes: bytes = (
+                gcm_encryptor.update(plaintext_bytes) + gcm_encryptor.finalize()
+            )
+            encryption_metadata.tag = gcm_encryptor.tag
             return ciphertext_bytes
 
         if (
             self.config.mode == constants.SymmetricMode.CBC
             and self.config.padding == constants.SymmetricPadding.PKCS7
         ):
-            plaintext_bytes = pad(plaintext_bytes, AES.block_size, style="pkcs7")
+            plaintext_bytes = self._pad_pkcs7(plaintext_bytes)
 
-        standard_ctx = self.init_ctx(encryption_metadata)
-        return standard_ctx.encrypt(plaintext_bytes)
+        cipher = self._create_cipher(self._get_iv(encryption_metadata))
+        standard_encryptor = cipher.encryptor()
+        return standard_encryptor.update(plaintext_bytes) + standard_encryptor.finalize()
 
     def _decrypt(
         self, ciphertext_bytes: bytes, encryption_metadata: base.EncryptionMetadata
     ) -> bytes:
         if self.config.mode == constants.SymmetricMode.CBC and (
-            not ciphertext_bytes or len(ciphertext_bytes) % AES.block_size
+            not ciphertext_bytes or len(ciphertext_bytes) % AES_BLOCK_SIZE
         ):
             raise ValueError("AES CBC ciphertext must be non-empty and block-aligned")
 
         if self.config.mode == constants.SymmetricMode.GCM:
-            cipher_ctx = self._init_gcm_ctx(encryption_metadata)
             tag = encryption_metadata.tag
             if tag is None:
                 raise ValueError("AES GCM authentication tag is required")
-            return cipher_ctx.decrypt_and_verify(ciphertext_bytes, tag)
+            cipher = self._create_cipher(self._get_iv(encryption_metadata), tag=tag)
+            gcm_decryptor = typing.cast("AEADDecryptionContext", cipher.decryptor())
+            gcm_decryptor.authenticate_additional_data(
+                self._get_aad(encryption_metadata)
+            )
+            try:
+                return gcm_decryptor.update(ciphertext_bytes) + gcm_decryptor.finalize()
+            except exceptions.InvalidTag as error:
+                raise ValueError("MAC check failed") from error
 
-        standard_ctx = self.init_ctx(encryption_metadata)
-        decrypted_bytes: bytes = standard_ctx.decrypt(ciphertext_bytes)
+        cipher = self._create_cipher(self._get_iv(encryption_metadata))
+        standard_decryptor = cipher.decryptor()
+        decrypted_bytes: bytes = (
+            standard_decryptor.update(ciphertext_bytes) + standard_decryptor.finalize()
+        )
         if (
             self.config.mode == constants.SymmetricMode.CBC
             and self.config.padding == constants.SymmetricPadding.PKCS7
         ):
-            return unpad(decrypted_bytes, AES.block_size, style="pkcs7")
+            return self._unpad_pkcs7(decrypted_bytes)
         return decrypted_bytes

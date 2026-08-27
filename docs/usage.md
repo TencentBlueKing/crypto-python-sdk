@@ -32,8 +32,8 @@
 | 参数                          | 类型                         | 描述                                      |
 |-----------------------------|----------------------------|-----------------------------------------|
 | padding                     | constants.RSACipherPadding | 加解密填充方案，默认为 `PKCS1_v1_5`                |
-| oaep_hash                   | Hash 模块                    | OAEP 哈希算法，默认为 `SHA1`                    |
-| mgf1_hash                   | Hash 模块                    | MGF1 哈希算法，默认为 `SHA1`                    |
+| oaep_hash                   | hashes.HashAlgorithm       | OAEP 哈希算法，默认为 `SHA1`                    |
+| mgf1_hash                   | hashes.HashAlgorithm       | MGF1 哈希算法，默认为 `SHA1`                    |
 | oaep_label                  | typing.Optional[bytes]     | OAEP label，默认为空                         |
 | enable_segmented_encryption | bool                       | 文本接口是否按 RSA 最大明文长度分段，默认为 `True`       |
 | sig_scheme                  | constants.RSASigScheme     | 签名方案，默认为 `PKCS1_v1_5`                   |
@@ -108,15 +108,14 @@ _baseSM4SymmetricConfig_ 类继承自 _BaseSymmetricConfig_ 类，不包含额�
 与 BK-KMS SDK 的 RSA-OAEP 配置保持一致时，需要同时为 OAEP 和 MGF1 指定 SHA-256，并使用空 label：
 
 ```python
-from Cryptodome.Hash import SHA256
-
 from bkcrypto import constants
 from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher
+from cryptography.hazmat.primitives import hashes
 
 rsa_cipher = RSAAsymmetricCipher(
     padding=constants.RSACipherPadding.PKCS1_OAEP,
-    oaep_hash=SHA256,
-    mgf1_hash=SHA256,
+    oaep_hash=hashes.SHA256(),
+    mgf1_hash=hashes.SHA256(),
     oaep_label=None,
     enable_segmented_encryption=False,
 )

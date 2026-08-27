@@ -2,7 +2,7 @@ import pytest
 from bkcrypto import constants
 from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher
 from bkcrypto.symmetric.ciphers import AESSymmetricCipher
-from Cryptodome.Hash import SHA256
+from cryptography.hazmat.primitives import hashes
 from tests.fixtures.bk_kms_vectors import (
     AES_KEY,
     GO_AES_CBC_CIPHERTEXT,
@@ -22,8 +22,8 @@ class TestBKKMSRSAInterop:
         return RSAAsymmetricCipher(
             private_key_string=RSA_PRIVATE_KEY,
             padding=constants.RSACipherPadding.PKCS1_OAEP,
-            oaep_hash=SHA256,
-            mgf1_hash=SHA256,
+            oaep_hash=hashes.SHA256(),
+            mgf1_hash=hashes.SHA256(),
             enable_segmented_encryption=False,
         )
 

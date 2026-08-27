@@ -3,19 +3,26 @@ import base64
 import pytest
 from bkcrypto import constants
 from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher
-from Cryptodome.Hash import SHA256
-from Cryptodome.IO import PEM
-from Cryptodome.PublicKey import RSA
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-class TestRSAKey:
+class TestRSASerialization:
     @classmethod
     def test_generate_key_pair__uses_bk_kms_formats(cls) -> None:
         cipher = RSAAsymmetricCipher()
+        public_key = serialization.load_pem_public_key(
+            cipher.export_public_key().encode()
+        )
+        private_key = serialization.load_pem_private_key(
+            cipher.export_private_key().encode(), password=None
+        )
 
-        assert cipher.config.public_key is not None
-        assert cipher.config.public_key.size_in_bits() == 2048
-        assert cipher.config.public_key.e == 65537
+        assert isinstance(public_key, rsa.RSAPublicKey)
+        assert isinstance(private_key, rsa.RSAPrivateKey)
+        assert public_key.key_size == 2048
+        assert public_key.public_numbers().e == 65537
+        assert private_key.public_key().public_numbers() == public_key.public_numbers()
         assert cipher.export_public_key().startswith("-----BEGIN PUBLIC KEY-----")
         assert cipher.export_private_key().startswith("-----BEGIN RSA PRIVATE KEY-----")
 
@@ -23,26 +30,53 @@ class TestRSAKey:
     def test_load_private_key__accepts_pkcs1_and_pkcs8(
         cls, rsa_private_key: str
     ) -> None:
-        private_key = RSA.import_key(rsa_private_key)
-        pkcs8_private_key = PEM.encode(
-            private_key.export_key(format="DER", pkcs=8), "PRIVATE KEY"
+        private_key = serialization.load_pem_private_key(
+            rsa_private_key.encode(), password=None
         )
+        assert isinstance(private_key, rsa.RSAPrivateKey)
+        pkcs8_private_key: str = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode()
 
         pkcs1_cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
         pkcs8_cipher = RSAAsymmetricCipher(private_key_string=pkcs8_private_key)
-        assert pkcs1_cipher.config.private_key is not None
-        assert pkcs8_cipher.config.private_key is not None
-        assert pkcs1_cipher.config.private_key.has_private()
-        assert pkcs8_cipher.config.private_key.has_private()
+
+        for cipher in (pkcs1_cipher, pkcs8_cipher):
+            assert cipher.decrypt(cipher.encrypt("key format")) == "key format"
+            assert cipher.export_private_key().startswith(
+                "-----BEGIN RSA PRIVATE KEY-----"
+            )
 
     @classmethod
     def test_load_public_key__keeps_private_key_input_compatible(
         cls, rsa_private_key: str
     ) -> None:
-        cipher = RSAAsymmetricCipher(public_key_string=rsa_private_key)
+        private_cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
+        public_cipher = RSAAsymmetricCipher(public_key_string=rsa_private_key)
+        ciphertext = public_cipher.encrypt("private PEM as public input")
 
-        assert cipher.config.public_key is not None
-        assert not cipher.config.public_key.has_private()
+        assert private_cipher.decrypt(ciphertext) == "private PEM as public input"
+        assert public_cipher.export_public_key() == private_cipher.export_public_key()
+
+    @classmethod
+    def test_load_public_key__accepts_openssh_format(cls, rsa_private_key: str) -> None:
+        private_cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
+        public_key = serialization.load_pem_public_key(
+            private_cipher.export_public_key().encode()
+        )
+        assert isinstance(public_key, rsa.RSAPublicKey)
+        openssh_public_key: str = public_key.public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH,
+        ).decode()
+
+        public_cipher = RSAAsymmetricCipher(public_key_string=openssh_public_key)
+        ciphertext = public_cipher.encrypt("OpenSSH public key")
+
+        assert private_cipher.decrypt(ciphertext) == "OpenSSH public key"
+        assert public_cipher.export_public_key() == private_cipher.export_public_key()
 
     @classmethod
     @pytest.mark.parametrize(
@@ -65,17 +99,22 @@ class TestRSALegacyAPI:
         assert list(blocks) == [b"ab", b"c"]
 
     @classmethod
-    def test_encrypt__requires_public_key(cls, rsa_private_key: str) -> None:
-        cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
-        cipher.config.public_key = None
+    def test_decrypt__requires_private_key(cls, rsa_private_key: str) -> None:
+        private_cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
+        cipher = RSAAsymmetricCipher(
+            public_key_string=private_cipher.export_public_key()
+        )
+        ciphertext = cipher.encrypt("message")
 
-        with pytest.raises(ValueError, match="call encrypt"):
-            cipher.encrypt("message")
+        with pytest.raises(ValueError, match="call decrypt"):
+            cipher.decrypt(ciphertext)
 
     @classmethod
     def test_sign__requires_private_key(cls, rsa_private_key: str) -> None:
-        cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
-        cipher.config.private_key = None
+        private_cipher = RSAAsymmetricCipher(private_key_string=rsa_private_key)
+        cipher = RSAAsymmetricCipher(
+            public_key_string=private_cipher.export_public_key()
+        )
 
         with pytest.raises(ValueError, match="call sign"):
             cipher.sign("message")
@@ -134,8 +173,8 @@ class TestRSAOAEP:
         return RSAAsymmetricCipher(
             private_key_string=rsa_private_key,
             padding=constants.RSACipherPadding.PKCS1_OAEP,
-            oaep_hash=SHA256,
-            mgf1_hash=SHA256,
+            oaep_hash=hashes.SHA256(),
+            mgf1_hash=hashes.SHA256(),
             **options,
         )
 

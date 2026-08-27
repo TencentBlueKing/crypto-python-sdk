@@ -50,12 +50,7 @@ class SM4SymmetricRuntimeConfig(
                 f"Optional key sizes are {SM4_KEY_SIZES}, but got {self.key_size}"
             )
 
-        if self.mode not in {
-            constants.SymmetricMode.CTR,
-            constants.SymmetricMode.CBC,
-            constants.SymmetricMode.GCM,
-            constants.SymmetricMode.CFB,
-        }:
+        if self.mode not in constants.SymmetricMode.members():
             raise ValueError(f"Unsupported mode: {self.mode}")
 
 

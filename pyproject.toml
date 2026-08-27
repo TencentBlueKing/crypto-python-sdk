@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bk-crypto-python-sdk"
 version = "4.0.0"
-description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries."
+description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on cryptography / tongsuopy and other encryption libraries."
 authors = [
     { name = "TencentBlueKing", email = "contactus_bk@tencent.com" },
 ]
@@ -13,7 +13,7 @@ readme = "readme.md"
 requires-python = ">=3.9,<3.15"
 dependencies = [
     "dacite>=1.8.1,<2.0.0",
-    "pycryptodomex>=3.20.0,<4.0.0",
+    "cryptography>=44.0.0,<51.0.0",
     "typing-extensions>=4.0",
 ]
 
