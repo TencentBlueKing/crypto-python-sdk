@@ -34,6 +34,12 @@
 $ pip install bk-crypto-python-sdk
 ```
 
+仅使用 AES、RSA 时无需安装国密依赖。需要 SM2、SM4 时安装 `gm` extra：
+
+```bash
+$ pip install "bk-crypto-python-sdk[gm]"
+```
+
 ### Usage
 
 > 更多用法参考：[使用文档](https://github.com/TencentBlueKing/crypto-python-sdk/blob/main/docs/usage.md)

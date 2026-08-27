@@ -10,7 +10,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import abc
-import copy
 import typing
 from dataclasses import dataclass
 
@@ -132,7 +131,7 @@ class BaseAsymmetricCipher:
         **options,
     ):
 
-        options: typing.Dict[str, typing.Any] = copy.deepcopy(options)
+        options: typing.Dict[str, typing.Any] = dict(options)
 
         # init config
         self.config = from_dict(self.CONFIG_DATA_CLASS, options)
@@ -206,6 +205,11 @@ class BaseAsymmetricCipher:
         ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
         return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
 
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
+    def encrypt_bytes(self, plaintext: bytes) -> str:
+        """加密二进制数据，不执行文本编码转换。"""
+        return self.config.convertor.to_string(self._encrypt_bytes(plaintext))
+
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt(self, ciphertext: str) -> str:
         """
@@ -218,6 +222,17 @@ class BaseAsymmetricCipher:
         plaintext_bytes: bytes = self._decrypt(ciphertext_bytes)
         plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
         return self.config.interceptor.after_decrypt(plaintext)
+
+    @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
+    def decrypt_bytes(self, ciphertext: str) -> bytes:
+        """解密二进制数据，不执行文本编码转换。"""
+        return self._decrypt_bytes(self.config.convertor.from_string(ciphertext))
+
+    def _encrypt_bytes(self, plaintext_bytes: bytes) -> bytes:
+        return self._encrypt(plaintext_bytes)
+
+    def _decrypt_bytes(self, ciphertext_bytes: bytes) -> bytes:
+        return self._decrypt(ciphertext_bytes)
 
     @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def sign(self, plaintext: str) -> str:

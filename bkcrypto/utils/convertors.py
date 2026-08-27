@@ -42,7 +42,7 @@ class Base64Convertor(BaseConvertor):
 
     @classmethod
     def from_string(cls, string: str, **kwargs) -> bytes:
-        return base64.b64decode(string)
+        return base64.b64decode(string, validate=True)
 
 
 class HexConvertor(BaseConvertor):

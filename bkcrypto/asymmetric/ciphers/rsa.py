@@ -14,9 +14,10 @@ specific language governing permissions and limitations under the License.
 import typing
 from dataclasses import dataclass
 
-from Cryptodome import Util
+from Cryptodome.Cipher import PKCS1_OAEP
 from Cryptodome.Hash import SHA1
 from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature.pss import MGF1
 
 from bkcrypto import constants, types
 
@@ -34,11 +35,21 @@ class RSAAsymmetricRuntimeConfig(configs.BaseRSAAsymmetricConfig, base.BaseAsymm
     sig_scheme_maker: types.RSASigSchemeMaker = None
 
     def __post_init__(self):
-        # TODO(crayon) hashAlgo 哈希算法注入
-        self.cipher_maker = constants.RSACipherPadding.get_cipher_maker_by_member(self.padding)
+        if self.padding == constants.RSACipherPadding.PKCS1_OAEP:
+            self.cipher_maker = self._make_oaep_cipher
+        else:
+            self.cipher_maker = constants.RSACipherPadding.get_cipher_maker_by_member(self.padding)
         self.sig_scheme_maker = constants.RSASigScheme.get_sig_scheme_maker_by_member(self.sig_scheme)
 
         super().__post_init__()
+
+    def _make_oaep_cipher(self, key: RSA.RsaKey) -> types.RSACipher:
+        return PKCS1_OAEP.new(
+            key,
+            hashAlgo=self.oaep_hash,
+            mgfunc=lambda seed, length: MGF1(seed, length, self.mgf1_hash),
+            label=self.oaep_label or b"",
+        )
 
 
 class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
@@ -58,32 +69,74 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
         return self.config.private_key.exportKey().decode(encoding=self.config.encoding)
 
     def _load_public_key(self, public_key_string: types.PublicKeyString) -> RSA.RsaKey:
-        return RSA.importKey(public_key_string)
+        try:
+            public_key: RSA.RsaKey = RSA.import_key(public_key_string)
+        except (IndexError, TypeError, ValueError) as error:
+            raise ValueError("Invalid RSA public key") from error
+        if public_key.has_private():
+            return public_key.publickey()
+        return public_key
 
     def _load_private_key(self, private_key_string: types.PrivateKeyString) -> RSA.RsaKey:
-        return RSA.importKey(private_key_string)
+        try:
+            private_key: RSA.RsaKey = RSA.import_key(private_key_string)
+        except (IndexError, TypeError, ValueError) as error:
+            raise ValueError("Invalid RSA private key") from error
+        if not private_key.has_private():
+            raise ValueError("Expected an RSA private key")
+        return private_key
 
     def generate_key_pair(self) -> typing.Tuple[types.PrivateKeyString, types.PublicKeyString]:
         private_key_obj: RSA.RsaKey = RSA.generate(self.config.pkey_bits)
-        private_key: bytes = private_key_obj.exportKey()
-        public_key: bytes = private_key_obj.publickey().exportKey()
+        private_key: bytes = private_key_obj.export_key(format="PEM", pkcs=1)
+        public_key: bytes = private_key_obj.publickey().export_key(format="PEM")
         return private_key.decode(encoding=self.config.encoding), public_key.decode(encoding=self.config.encoding)
 
     def _encrypt(self, plaintext_bytes: bytes) -> bytes:
-        ciphertext_bytes: bytes = b""
-        block_size: int = self.get_block_size(self.config.public_key)
+        block_size: int = self._get_encrypt_block_size()
+        if not self.config.enable_segmented_encryption:
+            return self._encrypt_bytes(plaintext_bytes)
         cipher: types.RSACipher = self.config.cipher_maker(self.config.public_key)
-        for block in self.block_list(plaintext_bytes, block_size):
-            ciphertext_bytes += cipher.encrypt(block)
-        return ciphertext_bytes
+        return b"".join(cipher.encrypt(block) for block in self.block_list(plaintext_bytes, block_size))
 
     def _decrypt(self, ciphertext_bytes: bytes) -> bytes:
-        plaintext_bytes: bytes = b""
-        cipher: types.RSACipher = self.config.cipher_maker(self.config.private_key)
+        if not self.config.enable_segmented_encryption:
+            return self._decrypt_bytes(ciphertext_bytes)
+
         block_size: int = self.get_block_size(self.config.private_key, is_encrypt=False)
-        for block in self.block_list(ciphertext_bytes, block_size):
-            plaintext_bytes += cipher.decrypt(block, "")
+        if len(ciphertext_bytes) % block_size:
+            raise ValueError("Invalid RSA ciphertext length")
+        cipher: types.RSACipher = self.config.cipher_maker(self.config.private_key)
+        return b"".join(self._decrypt_block(cipher, block) for block in self.block_list(ciphertext_bytes, block_size))
+
+    def _encrypt_bytes(self, plaintext_bytes: bytes) -> bytes:
+        if len(plaintext_bytes) > self._get_encrypt_block_size():
+            raise ValueError("RSA plaintext is too long")
+        cipher: types.RSACipher = self.config.cipher_maker(self.config.public_key)
+        return cipher.encrypt(plaintext_bytes)
+
+    def _decrypt_bytes(self, ciphertext_bytes: bytes) -> bytes:
+        block_size: int = self.get_block_size(self.config.private_key, is_encrypt=False)
+        if len(ciphertext_bytes) != block_size:
+            raise ValueError("Invalid RSA ciphertext length")
+        cipher: types.RSACipher = self.config.cipher_maker(self.config.private_key)
+        return self._decrypt_block(cipher, ciphertext_bytes)
+
+    def _decrypt_block(self, cipher: types.RSACipher, ciphertext_bytes: bytes) -> bytes:
+        if self.config.padding == constants.RSACipherPadding.PKCS1_OAEP:
+            return cipher.decrypt(ciphertext_bytes)
+
+        plaintext_bytes: typing.Optional[bytes] = cipher.decrypt(ciphertext_bytes, None)
+        if plaintext_bytes is None:
+            raise ValueError("Invalid RSA ciphertext")
         return plaintext_bytes
+
+    def _get_encrypt_block_size(self) -> int:
+        return self.get_block_size(
+            self.config.public_key,
+            padding=self.config.padding,
+            oaep_hash=self.config.oaep_hash,
+        )
 
     def _sign(self, plaintext_bytes: bytes) -> bytes:
         sig_scheme: types.RSASigScheme = self.config.sig_scheme_maker(self.config.private_key)
@@ -113,18 +166,20 @@ class RSAAsymmetricCipher(base.BaseAsymmetricCipher):
             yield lst[idx : idx + block_size]
 
     @staticmethod
-    def get_block_size(key_obj: RSA.RsaKey, is_encrypt: bool = True) -> int:
+    def get_block_size(
+        key_obj: RSA.RsaKey,
+        is_encrypt: bool = True,
+        padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5,
+        oaep_hash: typing.Any = SHA1,
+    ) -> int:
         """
         获取加解密最大片长度，用于分割过长的文本，单位：bytes
         :param key_obj:
         :param is_encrypt:
         :return:
         """
-        # TODO(crayon) 区分不同 Cipher 的最大明文长度
-        # PKCS1_v1_5: RSA key length(bytes) - 11
-        # PKCS1_OAEP: RSA密钥长度（字节） - 2 * 哈希（hashAlgo）输出长度（字节） - 2
-        block_size = Util.number.size(key_obj.n) / 8
-        reserve_size = 11
         if not is_encrypt:
-            reserve_size = 0
-        return int(block_size - reserve_size)
+            return key_obj.size_in_bytes()
+        if padding == constants.RSACipherPadding.PKCS1_OAEP:
+            return key_obj.size_in_bytes() - 2 * oaep_hash.digest_size - 2
+        return key_obj.size_in_bytes() - 11

@@ -36,6 +36,12 @@ projects to switch between different encryption methods without intrusion.
 $ pip install bk-crypto-python-sdk
 ```
 
+The base package contains everything required for AES and RSA. Install the `gm` extra when using SM2 or SM4:
+
+```bash
+$ pip install "bk-crypto-python-sdk[gm]"
+```
+
 ### Usage
 
 > For more usage guidelines, please refer

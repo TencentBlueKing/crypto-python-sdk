@@ -14,4 +14,11 @@ __all__ = ["BaseSymmetricCipher", "AESSymmetricCipher", "SM4SymmetricCipher"]
 
 from .aes import AESSymmetricCipher
 from .base import BaseSymmetricCipher
-from .sm4 import SM4SymmetricCipher
+
+
+def __getattr__(name):
+    if name == "SM4SymmetricCipher":
+        from .sm4 import SM4SymmetricCipher
+
+        return SM4SymmetricCipher
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

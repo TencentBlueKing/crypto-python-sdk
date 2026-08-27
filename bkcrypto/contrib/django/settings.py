@@ -16,22 +16,15 @@ from django.conf import settings
 from django.test.signals import setting_changed
 
 from bkcrypto import constants
-from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher, SM2AsymmetricCipher
+from bkcrypto.contrib.basic import ciphers as basic_ciphers
 from bkcrypto.contrib.django.init_configs import AsymmetricCipherInitConfig, CipherInitConfig, SymmetricCipherInitConfig
-from bkcrypto.symmetric.ciphers import AESSymmetricCipher, SM4SymmetricCipher
 from bkcrypto.utils import module_loding
 
 DEFAULTS = {
     "SYMMETRIC_CIPHER_TYPE": constants.SymmetricCipherType.AES.value,
     "ASYMMETRIC_CIPHER_TYPE": constants.AsymmetricCipherType.RSA.value,
-    "SYMMETRIC_CIPHER_CLASSES": {
-        constants.SymmetricCipherType.AES.value: module_loding.get_import_path(AESSymmetricCipher),
-        constants.SymmetricCipherType.SM4.value: module_loding.get_import_path(SM4SymmetricCipher),
-    },
-    "ASYMMETRIC_CIPHER_CLASSES": {
-        constants.AsymmetricCipherType.RSA.value: module_loding.get_import_path(RSAAsymmetricCipher),
-        constants.AsymmetricCipherType.SM2.value: module_loding.get_import_path(SM2AsymmetricCipher),
-    },
+    "SYMMETRIC_CIPHER_CLASSES": dict(basic_ciphers.SYMMETRIC_CIPHER_CLASSES),
+    "ASYMMETRIC_CIPHER_CLASSES": dict(basic_ciphers.ASYMMETRIC_CIPHER_CLASSES),
     "SYMMETRIC_CIPHERS": {
         "default": {
             # 可选，用于在 settings 没法直接获取 key 的情况
@@ -111,12 +104,6 @@ class CryptoSettings:
         except KeyError:
             # Fall back to defaults
             val = self.defaults[attr]
-
-        if attr in ["SYMMETRIC_CIPHER_CLASSES", "ASYMMETRIC_CIPHER_CLASSES"]:
-            val = {
-                cipher_type: module_loding.import_string(cipher_import_path)
-                for cipher_type, cipher_import_path in val.items()
-            }
 
         if attr in ["SYMMETRIC_CIPHERS", "ASYMMETRIC_CIPHERS"]:
             using__init_config_map: typing.Dict[str, CipherInitConfig] = {}

@@ -246,6 +246,31 @@ class BaseSymmetricCipher:
         plaintext: str = self.config.interceptor.before_encrypt(plaintext, cipher=self)
         plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
 
+        ciphertext: str = self._encrypt_bytes(plaintext_bytes)
+        return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
+
+    def encrypt_bytes(self, plaintext: bytes) -> str:
+        """加密二进制数据，不执行文本编码转换。"""
+        return self._encrypt_bytes(plaintext)
+
+    def decrypt(self, ciphertext: str) -> str:
+        """
+        解密
+        :param ciphertext: 密文
+        :return: 解密后的信息
+        """
+
+        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
+        plaintext_bytes: bytes = self.decrypt_bytes(ciphertext)
+        plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
+        return self.config.interceptor.after_decrypt(plaintext, cipher=self)
+
+    def decrypt_bytes(self, ciphertext: str) -> bytes:
+        """解密二进制数据，不执行文本编码转换。"""
+        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata(ciphertext)
+        return self._decrypt(ciphertext_bytes, encryption_metadata)
+
+    def _encrypt_bytes(self, plaintext_bytes: bytes) -> str:
         if not self.config.enable_iv:
             iv = None
         elif self.config.iv:
@@ -261,19 +286,5 @@ class BaseSymmetricCipher:
             aad = self.generate_aad()
 
         encryption_metadata: EncryptionMetadata = EncryptionMetadata(iv=iv, aad=aad)
-        ciphertext_bytes = self._encrypt(plaintext_bytes, encryption_metadata)
-        ciphertext: str = self.combine_encryption_metadata(ciphertext_bytes, encryption_metadata)
-        return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
-
-    def decrypt(self, ciphertext: str) -> str:
-        """
-        解密
-        :param ciphertext: 密文
-        :return: 解密后的信息
-        """
-
-        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
-        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata(ciphertext)
-        plaintext_bytes: bytes = self._decrypt(ciphertext_bytes, encryption_metadata)
-        plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
-        return self.config.interceptor.after_decrypt(plaintext, cipher=self)
+        ciphertext_bytes: bytes = self._encrypt(plaintext_bytes, encryption_metadata)
+        return self.combine_encryption_metadata(ciphertext_bytes, encryption_metadata)
