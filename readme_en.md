@@ -64,7 +64,7 @@ asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher(
         constants.AsymmetricCipherType.SM2.value: options.SM2AsymmetricOptions(
             private_key_string=None
         ),
-        constants.AsymmetricCipherType.RSA.value: options.SM2AsymmetricOptions(
+        constants.AsymmetricCipherType.RSA.value: options.RSAAsymmetricOptions(
             private_key_string=None
         ),
     },
