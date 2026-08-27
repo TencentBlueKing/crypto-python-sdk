@@ -1,24 +1,36 @@
-# -*- coding: utf-8 -*-
-"""
-TencentBlueKing is pleased to support the open source community by making 蓝鲸智云 - crypto-python-sdk
-(BlueKing - crypto-python-sdk) available.
+"""TencentBlueKing is pleased to support the open source community.
+
+蓝鲸智云 - crypto-python-sdk (BlueKing - crypto-python-sdk) is made available by
+TencentBlueKing.
+
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at https://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+Licensed under the MIT License (the "License"); you may not use this file except
+in compliance with the License. You may obtain a copy of the License at
+https://opensource.org/licenses/MIT.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
 
-__all__ = ["BaseSymmetricCipher", "AESSymmetricCipher", "SM4SymmetricCipher"]
+__all__ = [
+    "AESSymmetricCipher",
+    "BaseSymmetricCipher",
+    "SM4SymmetricCipher",
+    "SymmetricCipher",
+]
+
+from importlib import import_module
+from typing import TYPE_CHECKING
 
 from .aes import AESSymmetricCipher
-from .base import BaseSymmetricCipher
+from .base import BaseSymmetricCipher, SymmetricCipher
+
+if TYPE_CHECKING:
+    from .sm4 import SM4SymmetricCipher
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> object:
     if name == "SM4SymmetricCipher":
-        from .sm4 import SM4SymmetricCipher
-
-        return SM4SymmetricCipher
+        return import_module(".sm4", __name__).SM4SymmetricCipher
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -47,7 +47,7 @@
 |-----|-------------------------------------------|----------------|
 | key | typing.Optional[typing.Union[bytes, str]] | 密钥。如果为空，则随机生成。 |
 
-### BaseSymmetricConfig
+#### BaseSymmetricConfig
 
 | 参数                                   | 类型                                                 | 描述                                                                      |
 |--------------------------------------|----------------------------------------------------|-------------------------------------------------------------------------|
@@ -153,7 +153,7 @@ pip install "bk-crypto-python-sdk[gm]"
 
 ## 扩展开发
 
-## 自定义 Cipher
+### 自定义 Cipher
 
 ```python
 import typing
@@ -163,7 +163,7 @@ from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
 
 class MyAsymmetricCipher(BaseAsymmetricCipher):
     @staticmethod
-    def get_block_size(key_obj: typing.Any, is_encrypt: bool = True) -> typing.Optional[int]:
+    def get_block_size(key_obj: object, is_encrypt: bool = True) -> typing.Optional[int]:
         pass
 
     def export_public_key(self) -> str:
@@ -172,17 +172,19 @@ class MyAsymmetricCipher(BaseAsymmetricCipher):
     def export_private_key(self) -> str:
         pass
 
-    def _load_public_key(self, public_key_string: types.PublicKeyString):
+    def _load_public_key(self, public_key_string: types.PublicKeyString) -> object:
         pass
 
-    def _load_private_key(self, private_key_string: types.PrivateKeyString):
+    def _load_private_key(self, private_key_string: types.PrivateKeyString) -> object:
         pass
 
     @staticmethod
-    def load_public_key_from_pkey(private_key: typing.Any):
+    def load_public_key_from_pkey(private_key: object) -> object:
         pass
 
-    def generate_key_pair(self) -> typing.Tuple[types.PrivateKeyString, types.PublicKeyString]:
+    def generate_key_pair(
+        self,
+    ) -> tuple[types.PrivateKeyString, types.PublicKeyString]:
         pass
 
     def _encrypt(self, plaintext_bytes: bytes) -> bytes:
@@ -196,13 +198,11 @@ class MyAsymmetricCipher(BaseAsymmetricCipher):
 
     def _verify(self, plaintext_bytes: bytes, signature_types: bytes) -> bool:
         pass
-
 ```
 
-## 自定义 convertor
+### 自定义 convertor
 
 ```python
-
 import binascii
 from bkcrypto.constants import SymmetricMode
 from bkcrypto.utils.convertors import HexConvertor
@@ -211,26 +211,28 @@ from bkcrypto.symmetric.ciphers import SM4SymmetricCipher
 
 class MyHexConvertor(HexConvertor):
     @staticmethod
-    def encode_plaintext(plaintext: str, encoding: str = "utf-8", **kwargs) -> bytes:
+    def encode_plaintext(
+        plaintext: str, encoding: str = "utf-8", **kwargs: object
+    ) -> bytes:
         return bytes.fromhex(plaintext)
 
     @staticmethod
-    def decode_plaintext(plaintext_bytes: bytes, encoding: str = "utf-8", **kwargs) -> str:
+    def decode_plaintext(
+        plaintext_bytes: bytes, encoding: str = "utf-8", **kwargs: object
+    ) -> str:
         return plaintext_bytes.hex()
 
 
 key = b"0123456789ABCDEFFEDCBA9876543210"
 iv = b"0123456789ABCDEFFEDCBA9876543210"
 plaintext = b"0123456789ABCDEFFEDCBA98765432100123456789ABCDEFFEDCBA9876543210"
-ciphertext = (
-    b"2677F46B09C122CC975533105BD4A22AF6125F7275CE552C3A2BBCF533DE8A3B"
-)
+ciphertext = b"2677F46B09C122CC975533105BD4A22AF6125F7275CE552C3A2BBCF533DE8A3B"
 
 cipher = SM4SymmetricCipher(
     key=binascii.unhexlify(key),
     iv=binascii.unhexlify(iv),
     mode=SymmetricMode.CBC,
-    convertor=MyHexConvertor
+    convertor=MyHexConvertor,
 )
 
 assert plaintext.decode().lower() == cipher.decrypt(
@@ -242,7 +244,7 @@ assert plaintext.decode().lower() == cipher.decrypt(
 )
 ```
 
-## 自定义 interceptors
+### 自定义 interceptors
 
 ```python
 import random
@@ -252,14 +254,13 @@ from bkcrypto.asymmetric.interceptors import BaseAsymmetricInterceptor
 
 
 class PrefixAsymmetricInterceptor(BaseAsymmetricInterceptor):
-
     @classmethod
-    def after_encrypt(cls, ciphertext: str, **kwargs) -> str:
+    def after_encrypt(cls, ciphertext: str, **kwargs: object) -> str:
         return f"bkcrypto${ciphertext}"
 
     @classmethod
-    def before_decrypt(cls, ciphertext: str, **kwargs) -> str:
-        return ciphertext[len("bkcrypto$"):]
+    def before_decrypt(cls, ciphertext: str, **kwargs: object) -> str:
+        return ciphertext[len("bkcrypto$") :]
 
 
 sm2_cipher = SM2AsymmetricCipher(interceptor=PrefixAsymmetricInterceptor)
@@ -272,16 +273,17 @@ assert plaintext == sm2_cipher.decrypt(ciphertext)
 
 ### SymmetricTextField
 
-* using - 指定对称加密实例，默认使用 `default`
+- `using`：指定对称加密实例，默认使用 `default`。
 
-* prefix - 是否指定固定前缀，如果不为 None，密文将统一使用 prefix 作为前缀
+- `prefix`：指定固定前缀；值不为 `None` 时，密文统一使用该前缀。
 
 ## 问题
 
 ### Mac M1 报错：symbol not found in flat namespace '_ffi_prep_closure'
 
+处理方式参考 [macOS 上的 cffi 链接错误排查](https://stackoverflow.com/questions/66035003/)：
+
 ```shell
-# refer: https://stackoverflow.com/questions/66035003/
 pip uninstall cffi
 LDFLAGS=-L$(brew --prefix libffi)/lib CFLAGS=-I$(brew --prefix libffi)/include pip install cffi
 ```

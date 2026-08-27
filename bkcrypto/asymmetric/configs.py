@@ -1,32 +1,39 @@
-# -*- coding: utf-8 -*-
-"""
-TencentBlueKing is pleased to support the open source community by making 蓝鲸智云 - crypto-python-sdk
-(BlueKing - crypto-python-sdk) available.
+"""TencentBlueKing is pleased to support the open source community.
+
+蓝鲸智云 - crypto-python-sdk (BlueKing - crypto-python-sdk) is made available by
+TencentBlueKing.
+
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at https://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+Licensed under the MIT License (the "License"); you may not use this file except
+in compliance with the License. You may obtain a copy of the License at
+https://opensource.org/licenses/MIT.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
 
 import typing
 from dataclasses import dataclass
 
-from Cryptodome.Hash import SHA1
-
 from bkcrypto import constants, types
 from bkcrypto.utils import convertors
+from Cryptodome.Hash import SHA1
 
 from . import interceptors
+
+# PyCryptodome's runtime module and stub-only hash protocol cannot share one
+# nominal type. Keep this single cast at the library boundary.
+DEFAULT_RSA_HASH = typing.cast("types.HashModule", SHA1)
 
 
 @dataclass
 class KeyConfig:
-    """
+    """Configure asymmetric key sources.
+
     1. 优先使用 string 进行加载
     2. 若私钥已传入，公钥可以不传，会基于私钥生成
-    3. 都不传时将随机生成密钥对
+    3. 都不传时将随机生成密钥对.
     """
 
     # 公钥（字符串）
@@ -41,23 +48,28 @@ class KeyConfig:
 
 @dataclass
 class BaseAsymmetricConfig:
+    """Configure behavior shared by all asymmetric ciphers."""
+
     # 编码，默认为 `utf-8`
     encoding: str = "utf-8"
     # 字节序列转换器，默认使用 `Base64Convertor`
-    convertor: typing.Type[convertors.BaseConvertor] = convertors.Base64Convertor
-    # 拦截器，用于在加解密、签名验签操作前后添加自定义操作，默认使用 `BaseAsymmetricInterceptor`
-    interceptor: typing.Type[interceptors.BaseAsymmetricInterceptor] = interceptors.BaseAsymmetricInterceptor
+    convertor: type[convertors.BaseConvertor] = convertors.Base64Convertor
+    # 拦截器用于在加解密、签名验签操作前后添加自定义操作。
+    interceptor: type[interceptors.BaseAsymmetricInterceptor] = (
+        interceptors.BaseAsymmetricInterceptor
+    )
 
 
 @dataclass
 class BaseRSAAsymmetricConfig(BaseAsymmetricConfig):
+    """Configure RSA padding, hashing, signatures, and key generation."""
 
     # 加解密填充方案，默认为 `PKCS1_v1_5`
     padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
     # OAEP 哈希算法，默认保留 PyCryptodome 的 SHA-1 行为
-    oaep_hash: typing.Any = SHA1
+    oaep_hash: types.HashModule = DEFAULT_RSA_HASH
     # MGF1 哈希算法，默认与历史 OAEP 行为一致
-    mgf1_hash: typing.Any = SHA1
+    mgf1_hash: types.HashModule = DEFAULT_RSA_HASH
     # OAEP label，None 表示空 label
     oaep_label: typing.Optional[bytes] = None
     # 是否按 RSA 最大明文长度分段，默认保留历史行为
@@ -72,4 +84,4 @@ class BaseRSAAsymmetricConfig(BaseAsymmetricConfig):
 
 @dataclass
 class BaseSM2AsymmetricConfig(BaseAsymmetricConfig):
-    pass
+    """Configure SM2 asymmetric cipher behavior."""

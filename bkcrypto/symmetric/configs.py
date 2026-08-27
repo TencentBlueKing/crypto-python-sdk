@@ -1,14 +1,18 @@
-# -*- coding: utf-8 -*-
-"""
-TencentBlueKing is pleased to support the open source community by making 蓝鲸智云 - crypto-python-sdk
-(BlueKing - crypto-python-sdk) available.
+"""TencentBlueKing is pleased to support the open source community.
+
+蓝鲸智云 - crypto-python-sdk (BlueKing - crypto-python-sdk) is made available by
+TencentBlueKing.
+
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at https://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+Licensed under the MIT License (the "License"); you may not use this file except
+in compliance with the License. You may obtain a copy of the License at
+https://opensource.org/licenses/MIT.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import typing
 from dataclasses import dataclass
 
@@ -20,12 +24,15 @@ from . import interceptors
 
 @dataclass
 class KeyConfig:
+    """Configure symmetric key material."""
+
     # 密钥，为空时随机生成，可通过 key_size 指定密钥长度
     key: typing.Optional[typing.Union[bytes, str]] = None
 
 
 @dataclass
 class BaseSymmetricConfig:
+    """Configure behavior shared by all symmetric ciphers."""
 
     # 块密码模式
     mode: constants.SymmetricMode = constants.SymmetricMode.CTR
@@ -35,8 +42,8 @@ class BaseSymmetricConfig:
     # 是否启用 iv
     enable_iv: bool = True
     # enable_random_iv = `True` 时可选，默认为 16 字节
-    # 对于 CBC、CFB 和 OFB 模式：IV 的长度应与 AES 加密的分组大小相同，即 128 位（16 字节）
-    # 对于 CTR 模式：IV（通常称为 nonce）的长度可以灵活设置。通常长度为 64 位到 128 位（8 - 16 字节)
+    # 对于 CBC、CFB 和 OFB 模式，IV 长度应与 AES 分组大小相同（16 字节）。
+    # 对于 CTR 模式，IV（nonce）通常为 8 到 16 字节。
     # 对于 GCM 模式：IV（通常称为 nonce）的长度通常为 96 位（12 字节）
     iv_size: int = 16
     # 固定初始向量，为空时每次加密随机生成
@@ -52,7 +59,7 @@ class BaseSymmetricConfig:
 
     # encryption_metadata_combination_mode="bytes" 时，会使用该值作为 tag 的固定填充长度
     # 一般 tag 的长度为 4 ~ 16，padded_tag_size 的最优取值是 max_pad_size * 2
-    padded_tag_size = 32
+    padded_tag_size: int = 32
 
     # 加密元数据携带模式
     encryption_metadata_combination_mode: constants.EncryptionMetadataCombinationMode = (
@@ -62,16 +69,20 @@ class BaseSymmetricConfig:
     metadata_combination_separator: str = "$bkcrypto$"
 
     encoding: str = "utf-8"
-    convertor: typing.Type[convertors.BaseConvertor] = convertors.Base64Convertor
-    interceptor: typing.Type[interceptors.BaseSymmetricInterceptor] = interceptors.BaseSymmetricInterceptor
+    convertor: type[convertors.BaseConvertor] = convertors.Base64Convertor
+    interceptor: type[interceptors.BaseSymmetricInterceptor] = (
+        interceptors.BaseSymmetricInterceptor
+    )
 
 
 @dataclass
 class BaseAESSymmetricConfig(BaseSymmetricConfig):
+    """Configure AES-specific padding behavior."""
+
     # 填充方案，默认不填充以兼容历史行为
     padding: constants.SymmetricPadding = constants.SymmetricPadding.NONE
 
 
 @dataclass
 class BaseSM4SymmetricConfig(BaseSymmetricConfig):
-    pass
+    """Configure SM4 symmetric cipher behavior."""

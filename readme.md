@@ -64,7 +64,7 @@ asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher(
         constants.AsymmetricCipherType.RSA.value: options.SM2AsymmetricOptions(
             private_key_string=None
         ),
-    }
+    },
 )
 
 # 加解密
@@ -156,10 +156,14 @@ BKCRYPTO = {
             # 公共参数配置，不同 cipher 初始化时共用这部分参数
             "common": {"key": "your key"},
             "cipher_options": {
-                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
+                    key_size=16
+                ),
                 # 蓝鲸推荐配置
-                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
-            }
+                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(
+                    mode=constants.SymmetricMode.CTR
+                ),
+            },
         },
     },
     "ASYMMETRIC_CIPHERS": {
@@ -170,10 +174,10 @@ BKCRYPTO = {
                 constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
                     padding=constants.RSACipherPadding.PKCS1_v1_5
                 ),
-                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions()
+                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions(),
             },
         },
-    }
+    },
 }
 ```
 
@@ -185,7 +189,9 @@ BKCRYPTO = {
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
 from bkcrypto.contrib.django.ciphers import asymmetric_cipher_manager
 
-asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(using="default")
+asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(
+    using="default"
+)
 
 # 加解密
 assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))

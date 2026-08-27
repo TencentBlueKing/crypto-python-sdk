@@ -1,9 +1,8 @@
 import pytest
-from Cryptodome.Hash import SHA256
-
 from bkcrypto import constants
 from bkcrypto.asymmetric.ciphers import RSAAsymmetricCipher
 from bkcrypto.symmetric.ciphers import AESSymmetricCipher
+from Cryptodome.Hash import SHA256
 from tests.fixtures.bk_kms_vectors import (
     AES_KEY,
     GO_AES_CBC_CIPHERTEXT,
@@ -33,7 +32,9 @@ class TestBKKMSRSAInterop:
         "ciphertext",
         [GO_RSA_CIPHERTEXT, PYTHON_RSA_CIPHERTEXT_VERIFIED_BY_GO],
     )
-    def test_decrypt_bytes__reads_bk_kms_compatible_oaep_sha256(cls, ciphertext: str) -> None:
+    def test_decrypt_bytes__reads_bk_kms_compatible_oaep_sha256(
+        cls, ciphertext: str
+    ) -> None:
         assert cls.make_cipher().decrypt_bytes(ciphertext) == PLAINTEXT
 
     @classmethod
@@ -46,11 +47,33 @@ class TestBKKMSRSAInterop:
 
 class TestBKKMSAESInterop:
     @classmethod
+    def test_decrypt_bytes__accepts_line_wrapped_go_ciphertext(cls) -> None:
+        cipher = AESSymmetricCipher(
+            key=AES_KEY,
+            mode=constants.SymmetricMode.CTR,
+            padding=constants.SymmetricPadding.NONE,
+        )
+        wrapped_ciphertext = "\n".join(
+            GO_AES_CTR_CIPHERTEXT[index : index + 16]
+            for index in range(0, len(GO_AES_CTR_CIPHERTEXT), 16)
+        )
+
+        assert cipher.decrypt_bytes(wrapped_ciphertext) == PLAINTEXT
+
+    @classmethod
     @pytest.mark.parametrize(
         ("mode", "padding", "ciphertext"),
         [
-            (constants.SymmetricMode.CBC, constants.SymmetricPadding.PKCS7, GO_AES_CBC_CIPHERTEXT),
-            (constants.SymmetricMode.CTR, constants.SymmetricPadding.NONE, GO_AES_CTR_CIPHERTEXT),
+            (
+                constants.SymmetricMode.CBC,
+                constants.SymmetricPadding.PKCS7,
+                GO_AES_CBC_CIPHERTEXT,
+            ),
+            (
+                constants.SymmetricMode.CTR,
+                constants.SymmetricPadding.NONE,
+                GO_AES_CTR_CIPHERTEXT,
+            ),
         ],
     )
     def test_decrypt_bytes__reads_go_ciphertext(

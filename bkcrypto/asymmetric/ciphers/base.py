@@ -1,75 +1,69 @@
-# -*- coding: utf-8 -*-
-"""
-TencentBlueKing is pleased to support the open source community by making 蓝鲸智云 - crypto-python-sdk
-(BlueKing - crypto-python-sdk) available.
+"""TencentBlueKing is pleased to support the open source community.
+
+蓝鲸智云 - crypto-python-sdk (BlueKing - crypto-python-sdk) is made available by
+TencentBlueKing.
+
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at https://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+Licensed under the MIT License (the "License"); you may not use this file except
+in compliance with the License. You may obtain a copy of the License at
+https://opensource.org/licenses/MIT.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import typing
 from dataclasses import dataclass
 
-import wrapt
-from dacite import from_dict
-
 from bkcrypto import constants, types
+from dacite import from_dict
+from typing_extensions import TypeAlias
 
 from .. import configs
 from ..options import AsymmetricOptions
 
+AsymmetricConfigT = typing.TypeVar(
+    "AsymmetricConfigT", bound="BaseAsymmetricRuntimeConfig"
+)
+
 
 @dataclass
 class BaseAsymmetricRuntimeConfig(configs.BaseAsymmetricConfig):
-    public_key: typing.Any = None
-    private_key: typing.Any = None
+    """Store normalized runtime configuration for an asymmetric cipher."""
 
-    def __post_init__(self):
+    public_key: typing.Optional[object] = None
+    private_key: typing.Optional[object] = None
+
+    def __post_init__(self) -> None:
         pass
 
 
-def key_obj_checker(key_attribute: constants.AsymmetricKeyAttribute):
-    """
-    密钥对象检查器
-    :param key_attribute: 密钥属性
-    :return:
-    """
+class BaseAsymmetricCipher(abc.ABC, typing.Generic[AsymmetricConfigT]):
+    """Provide the shared lifecycle for asymmetric cipher implementations."""
 
-    @wrapt.decorator
-    def handle(
-        wrapped: typing.Callable,
-        instance: "BaseAsymmetricCipher",
-        args: typing.Tuple[typing.Any],
-        kwargs: typing.Dict[str, typing.Any],
-    ):
-        if not getattr(instance.config, key_attribute.value):
-            raise ValueError(f"{key_attribute} must be set if you want to call {wrapped.__name__}")
-        return wrapped(*args, **kwargs)
+    CIPHER_TYPE: str
 
-    return handle
+    # Raw subclasses historically inherit the base runtime config. Concrete
+    # generic subclasses override this with the config matching their type arg.
+    CONFIG_DATA_CLASS: type[AsymmetricConfigT] = typing.cast(
+        "type[AsymmetricConfigT]", BaseAsymmetricRuntimeConfig
+    )
 
+    OPTIONS_DATA_CLASS: type[AsymmetricOptions] = AsymmetricOptions
 
-class BaseAsymmetricCipher:
-
-    CIPHER_TYPE: str = None
-
-    CONFIG_DATA_CLASS: typing.Type[BaseAsymmetricRuntimeConfig] = BaseAsymmetricRuntimeConfig
-
-    OPTIONS_DATA_CLASS: typing.Type[AsymmetricOptions] = AsymmetricOptions
-
-    config: BaseAsymmetricRuntimeConfig = None
+    config: AsymmetricConfigT
 
     @staticmethod
     @abc.abstractmethod
-    def get_block_size(key_obj: typing.Any, is_encrypt: bool = True) -> typing.Optional[int]:
-        """
-        获取加解密最大片长度，用于分割过长的文本，单位：bytes，None 表示不需要加密
-        :param key_obj:
-        :param is_encrypt:
-        :return:
+    def get_block_size(key_obj: object, is_encrypt: bool = True) -> typing.Optional[int]:
+        """Return the maximum block size for encryption or decryption.
+
+        The size is measured in bytes; ``None`` means segmentation is unnecessary.
+        :param key_obj: Parsed key object whose capacity determines the block size.
+        :param is_encrypt: Whether to calculate plaintext capacity for encryption.
+        :return: Maximum block length in bytes, or ``None`` when splitting is unused.
         """
         raise NotImplementedError
 
@@ -82,27 +76,30 @@ class BaseAsymmetricCipher:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _load_public_key(self, public_key_string: types.PublicKeyString):
+    def _load_public_key(self, public_key_string: types.PublicKeyString) -> object:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _load_private_key(self, private_key_string: types.PrivateKeyString):
+    def _load_private_key(self, private_key_string: types.PrivateKeyString) -> object:
         raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod
-    def load_public_key_from_pkey(private_key: typing.Any):
-        """
-        通过 private_key 加载公钥
-        :return:
+    def load_public_key_from_pkey(private_key: object) -> object:
+        """Load a public key from a private-key object.
+
+        :param private_key: Parsed private key supplied by the crypto backend.
+        :return: Public key derived from ``private_key``.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def generate_key_pair(self) -> typing.Tuple[types.PrivateKeyString, types.PublicKeyString]:
-        """
-        生成密钥对
-        :return: private_key_string, public_key_string
+    def generate_key_pair(
+        self,
+    ) -> tuple[types.PrivateKeyString, types.PublicKeyString]:
+        """Generate a key pair.
+
+        :return: Serialized private and public keys, in that order.
         """
         raise NotImplementedError
 
@@ -128,19 +125,28 @@ class BaseAsymmetricCipher:
         private_key_string: typing.Optional[types.PrivateKeyString] = None,
         public_key_file: typing.Optional[str] = None,
         private_key_file: typing.Optional[str] = None,
-        **options,
-    ):
+        **options: object,
+    ) -> None:
 
-        options: typing.Dict[str, typing.Any] = dict(options)
+        normalized_options: dict[str, object] = dict(options)
 
         # init config
-        self.config = from_dict(self.CONFIG_DATA_CLASS, options)
+        self.config = from_dict(self.CONFIG_DATA_CLASS, normalized_options)
 
-        if not (public_key_string or private_key_string or public_key_file or private_key_file):
+        if not (
+            public_key_string
+            or private_key_string
+            or public_key_file
+            or private_key_file
+        ):
             private_key_string, public_key_string = self.generate_key_pair()
 
-        public_key: typing.Optional[typing.Any] = self.load_public_key(public_key_string, public_key_file)
-        private_key: typing.Optional[typing.Any] = self.load_private_key(private_key_string, private_key_file)
+        public_key: typing.Optional[object] = self.load_public_key(
+            public_key_string, public_key_file
+        )
+        private_key: typing.Optional[object] = self.load_private_key(
+            private_key_string, private_key_file
+        )
 
         if not public_key and private_key:
             # load public_key_obj from private_key_file
@@ -151,18 +157,17 @@ class BaseAsymmetricCipher:
 
     def load_key_base(
         self,
-        handle: typing.Callable[[types.KeyString], typing.Any],
+        handle: typing.Callable[[types.KeyString], object],
         key_str: typing.Optional[types.KeyString] = None,
         key_file: typing.Optional[str] = None,
-    ) -> typing.Optional:
-        """
-        载入密钥
-        :param handle: 处理方法
-        :param key_str: 密钥文本
-        :param key_file: 密钥文件
-        :return:
-        """
+    ) -> typing.Optional[object]:
+        """Load a key from a string or file.
 
+        :param handle: Backend parser that converts serialized key text to a key.
+        :param key_str: Serialized key supplied directly by the caller.
+        :param key_file: Path to a serialized key; its content takes precedence.
+        :return: Parsed key object, or ``None`` when neither source is provided.
+        """
         key_string_or_none: typing.Optional[str] = self.read_key(key_str, key_file)
         if not key_string_or_none:
             return None
@@ -170,62 +175,80 @@ class BaseAsymmetricCipher:
         return handle(key_string_or_none)
 
     def load_private_key(
-        self, key_str: typing.Optional[types.PrivateKeyString] = None, key_file: typing.Optional[str] = None
-    ) -> typing.Optional:
-        """
-        载入私钥
-        :param key_str:
-        :param key_file:
-        :return:
+        self,
+        key_str: typing.Optional[types.PrivateKeyString] = None,
+        key_file: typing.Optional[str] = None,
+    ) -> typing.Optional[object]:
+        """Load a private key.
+
+        :param key_str: Serialized private key supplied directly by the caller.
+        :param key_file: Path to a serialized private key.
+        :return: Parsed private key, or ``None`` when no key is provided.
         """
         # TODO(crayon,2023/06/15) 支持密码
         return self.load_key_base(self._load_private_key, key_str, key_file)
 
     def load_public_key(
-        self, key_str: typing.Optional[types.PublicKeyString] = None, key_file: typing.Optional[str] = None
-    ) -> typing.Optional:
-        """
-        载入公钥
-        :param key_str:
-        :param key_file:
-        :return:
+        self,
+        key_str: typing.Optional[types.PublicKeyString] = None,
+        key_file: typing.Optional[str] = None,
+    ) -> typing.Optional[object]:
+        """Load a public key.
+
+        :param key_str: Serialized public key supplied directly by the caller.
+        :param key_file: Path to a serialized public key.
+        :return: Parsed public key, or ``None`` when no key is provided.
         """
         return self.load_key_base(self._load_public_key, key_str, key_file)
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
+    def _require_key(
+        self, key_attribute: constants.AsymmetricKeyAttribute, operation: str
+    ) -> None:
+        """Ensure a key required by a public operation is configured."""
+        key: object = getattr(self.config, key_attribute.value)
+        if key is None:
+            raise ValueError(
+                f"{key_attribute} must be set if you want to call {operation}"
+            )
+
     def encrypt(self, plaintext: str) -> str:
+        """Encrypt a string.
+
+        :param plaintext: Text to encrypt with the configured public key.
+        :return: Encoded ciphertext produced by the configured converter.
         """
-        加密
-        :param plaintext: 待加密的字符串
-        :return: 密文
-        """
-        plaintext: str = self.config.interceptor.before_encrypt(plaintext)
-        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
+        self._require_key(constants.AsymmetricKeyAttribute.PUBLIC_KEY, "encrypt")
+        plaintext = self.config.interceptor.before_encrypt(plaintext)
+        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(
+            plaintext, encoding=self.config.encoding
+        )
         ciphertext_bytes: bytes = self._encrypt(plaintext_bytes)
         ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
         return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
     def encrypt_bytes(self, plaintext: bytes) -> str:
-        """加密二进制数据，不执行文本编码转换。"""
+        """Encrypt binary data without text encoding."""
+        self._require_key(constants.AsymmetricKeyAttribute.PUBLIC_KEY, "encrypt_bytes")
         return self.config.convertor.to_string(self._encrypt_bytes(plaintext))
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt(self, ciphertext: str) -> str:
+        """Decrypt a string.
+
+        :param ciphertext: Encoded ciphertext to decrypt with the private key.
+        :return: Decoded plaintext.
         """
-        解密
-        :param ciphertext: 密文
-        :return: 解密后的信息
-        """
-        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
+        self._require_key(constants.AsymmetricKeyAttribute.PRIVATE_KEY, "decrypt")
+        ciphertext = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
         ciphertext_bytes: bytes = self.config.convertor.from_string(ciphertext)
         plaintext_bytes: bytes = self._decrypt(ciphertext_bytes)
-        plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
+        plaintext: str = self.config.convertor.decode_plaintext(
+            plaintext_bytes, encoding=self.config.encoding
+        )
         return self.config.interceptor.after_decrypt(plaintext)
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def decrypt_bytes(self, ciphertext: str) -> bytes:
-        """解密二进制数据，不执行文本编码转换。"""
+        """Decrypt binary data without text decoding."""
+        self._require_key(constants.AsymmetricKeyAttribute.PRIVATE_KEY, "decrypt_bytes")
         return self._decrypt_bytes(self.config.convertor.from_string(ciphertext))
 
     def _encrypt_bytes(self, plaintext_bytes: bytes) -> bytes:
@@ -234,50 +257,62 @@ class BaseAsymmetricCipher:
     def _decrypt_bytes(self, ciphertext_bytes: bytes) -> bytes:
         return self._decrypt(ciphertext_bytes)
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PRIVATE_KEY)
     def sign(self, plaintext: str) -> str:
+        """Sign a string with the private key.
+
+        :param plaintext: Text whose encoded bytes will be signed.
+        :return: Encoded signature produced by the configured converter.
         """
-        根据私钥和需要发送的信息生成签名
-        :param plaintext: 需要发送给客户端的信息
-        :return:
-        """
-        plaintext: str = self.config.interceptor.before_sign(plaintext)
-        plaintext_types: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
+        self._require_key(constants.AsymmetricKeyAttribute.PRIVATE_KEY, "sign")
+        plaintext = self.config.interceptor.before_sign(plaintext)
+        plaintext_types: bytes = self.config.convertor.encode_plaintext(
+            plaintext, encoding=self.config.encoding
+        )
         signature_types: bytes = self._sign(plaintext_types)
         signature: str = self.config.convertor.to_string(signature_types)
         return self.config.interceptor.after_sign(signature)
 
-    @key_obj_checker(constants.AsymmetricKeyAttribute.PUBLIC_KEY)
     def verify(self, plaintext: str, signature: str) -> bool:
+        """Verify a signature with the public key.
+
+        :param plaintext: Original text whose signature should be verified.
+        :param signature: Encoded signature received from the signer.
+        :return: ``True`` when the signature is valid; otherwise ``False``.
         """
-        使用公钥验证签名
-        :param plaintext: 客户端接受的信息
-        :param signature: 签名
-        :return:
-        """
-        plaintext, signature = self.config.interceptor.before_verify(plaintext, signature)
-        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
+        self._require_key(constants.AsymmetricKeyAttribute.PUBLIC_KEY, "verify")
+        plaintext, signature = self.config.interceptor.before_verify(
+            plaintext, signature
+        )
+        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(
+            plaintext, encoding=self.config.encoding
+        )
         signature_bytes: bytes = self.config.convertor.from_string(signature)
         return self._verify(plaintext_bytes, signature_bytes)
 
     @staticmethod
     def read_key(
-        key_string: typing.Optional[types.KeyString] = None, key_file: typing.Optional[str] = None
+        key_string: typing.Optional[types.KeyString] = None,
+        key_file: typing.Optional[str] = None,
     ) -> typing.Optional[str]:
-        """
-        读取密钥
-        :param key_string: 内容
-        :param key_file: 文件
-        :return:
+        """Read a key from inline content or a file.
+
+        :param key_string: Serialized key supplied directly by the caller.
+        :param key_file: Path to a serialized key; its content takes precedence.
+        :return: Serialized key content, or ``None`` when no source is provided.
         """
         if not (key_string or key_file):
             return None
 
         if key_file:
             try:
-                with open(file=key_file, mode="r") as extern_key_fs:
+                with open(encoding="utf-8", file=key_file) as extern_key_fs:
                     key_string = extern_key_fs.read()
             except OSError as e:
-                raise OSError(f"can't not read / open extern_key_file -> {key_file}") from e
+                raise OSError(
+                    f"can't not read / open extern_key_file -> {key_file}"
+                ) from e
 
         return key_string
+
+
+AsymmetricCipher: TypeAlias = BaseAsymmetricCipher[typing.Any]
