@@ -1,5 +1,14 @@
 **# 版本日志
 
+## 4.1.0 - 2026-08-27
+
+### Improved
+
+* [ Improved ] Replace PyCryptodome with `cryptography` for RSA and AES
+  ([#41](https://github.com/TencentBlueKing/crypto-python-sdk/pull/41))
+* [ Improved ] Preserve RSA key formats, PEM and OpenSSH public-key loading, and RSA padding and signature behavior
+* [ Improved ] Preserve AES-CBC, AES-CTR, AES-CFB, and AES-GCM behavior and BK-KMS ciphertext compatibility
+
 ## 4.0.0 - 2026-08-27
 
 ### Feature
