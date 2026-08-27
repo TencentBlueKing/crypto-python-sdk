@@ -15,12 +15,12 @@
 
 ## Overview
 
-️🔧 BlueKing crypto-python-sdk 是一个基于 pyCryptodome / tongsuopy 等加密库的轻量级密码学工具包，为 Python 应用统一的加解密实现，
+️🔧 BlueKing crypto-python-sdk 是一个基于 cryptography / tongsuopy 等加密库的轻量级密码学工具包，为 Python 应用统一的加解密实现，
 便于项目在不同的加密方式之间进行无侵入切换
 
 ## Features
 
-* [Basic] 提供加密统一抽象层，对接 Cryptodome / tongsuopy 等加密库，提供统一的加解密实现
+* [Basic] 提供加密统一抽象层，对接 cryptography / tongsuopy 等加密库，提供统一的加解密实现
 * [Basic] 支持国际主流密码学算法：AES、RSA
 * [Basic] 支持中国商用密码学算法：SM2、SM4
 * [Basic] 非对称加密支持 CBC、CTR、GCM、CFB 作为块密码模式

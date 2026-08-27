@@ -14,17 +14,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import typing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from bkcrypto import constants, types
 from bkcrypto.utils import convertors
-from Cryptodome.Hash import SHA1
+from cryptography.hazmat.primitives import hashes
 
 from . import interceptors
 
-# PyCryptodome's runtime module and stub-only hash protocol cannot share one
-# nominal type. Keep this single cast at the library boundary.
-DEFAULT_RSA_HASH = typing.cast("types.HashModule", SHA1)
+DEFAULT_RSA_HASH: hashes.HashAlgorithm = hashes.SHA1()
 
 
 @dataclass
@@ -66,10 +64,10 @@ class BaseRSAAsymmetricConfig(BaseAsymmetricConfig):
 
     # 加解密填充方案，默认为 `PKCS1_v1_5`
     padding: constants.RSACipherPadding = constants.RSACipherPadding.PKCS1_v1_5
-    # OAEP 哈希算法，默认保留 PyCryptodome 的 SHA-1 行为
-    oaep_hash: types.HashModule = DEFAULT_RSA_HASH
+    # OAEP 哈希算法，默认保留历史 SHA-1 行为
+    oaep_hash: hashes.HashAlgorithm = field(default_factory=hashes.SHA1)
     # MGF1 哈希算法，默认与历史 OAEP 行为一致
-    mgf1_hash: types.HashModule = DEFAULT_RSA_HASH
+    mgf1_hash: hashes.HashAlgorithm = field(default_factory=hashes.SHA1)
     # OAEP label，None 表示空 label
     oaep_label: typing.Optional[bytes] = None
     # 是否按 RSA 最大明文长度分段，默认保留历史行为
@@ -78,7 +76,7 @@ class BaseRSAAsymmetricConfig(BaseAsymmetricConfig):
     sig_scheme: constants.RSASigScheme = constants.RSASigScheme.PKCS1_v1_5
     # 密钥长度（bit）
     # In 2017, a sufficient length is deemed to be 2048 bits.
-    # 具体参考 -> https://pycryptodome.readthedocs.io/en/latest/src/public_key/rsa.html
+    # 具体参考 -> https://cryptography.io/en/stable/hazmat/primitives/asymmetric/rsa/
     pkey_bits: int = 2048
 
 

@@ -14,12 +14,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from enum import Enum
-
-from Cryptodome.Cipher import PKCS1_OAEP
-from Cryptodome.Cipher import PKCS1_v1_5 as PKCS1_v1_5_cipher
-from Cryptodome.Signature import pkcs1_15, pss
-
-from . import types
+from functools import cache
 
 
 class AsymmetricKeyAttribute(Enum):
@@ -35,32 +30,12 @@ class RSACipherPadding(Enum):
     PKCS1_v1_5 = "PKCS1_v1_5"
     PKCS1_OAEP = "PKCS1_OAEP"
 
-    @classmethod
-    def get_cipher_maker_by_member(
-        cls, member: "RSACipherPadding"
-    ) -> types.RSACipherMaker:
-        makers: dict[RSACipherPadding, types.RSACipherMaker] = {
-            cls.PKCS1_OAEP: PKCS1_OAEP.new,
-            cls.PKCS1_v1_5: PKCS1_v1_5_cipher.new,
-        }
-        return makers[member]
-
 
 class RSASigScheme(Enum):
     """签名对象."""
 
     PKCS1_v1_5 = "PKCS1_v1_5"
     PKCS1_PSS = "PKCS1_PSS"
-
-    @classmethod
-    def get_sig_scheme_maker_by_member(
-        cls, member: "RSASigScheme"
-    ) -> types.RSASigSchemeMaker:
-        makers: dict[RSASigScheme, types.RSASigSchemeMaker] = {
-            cls.PKCS1_PSS: pss.new,
-            cls.PKCS1_v1_5: pkcs1_15.new,
-        }
-        return makers[member]
 
 
 class SymmetricMode(Enum):
@@ -70,6 +45,18 @@ class SymmetricMode(Enum):
     CBC = "CBC"
     GCM = "GCM"
     CFB = "CFB"
+
+    @classmethod
+    @cache
+    def members(cls) -> frozenset["SymmetricMode"]:
+        """Return all supported symmetric modes."""
+        return frozenset(cls)
+
+    @classmethod
+    @cache
+    def block_size_iv_modes(cls) -> frozenset["SymmetricMode"]:
+        """Return modes whose IV must match the cipher block size."""
+        return frozenset({cls.CBC, cls.CFB, cls.CTR})
 
 
 class SymmetricPadding(Enum):

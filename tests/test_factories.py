@@ -7,7 +7,7 @@ from bkcrypto.contrib.basic.ciphers import get_asymmetric_cipher, get_symmetric_
 from bkcrypto.contrib.django.init_configs import SymmetricCipherInitConfig
 from bkcrypto.contrib.django.settings import DEFAULTS, CryptoSettings
 from bkcrypto.symmetric.options import AESSymmetricOptions
-from Cryptodome.Hash import SHA256
+from cryptography.hazmat.primitives import hashes
 
 
 class TestBasicFactory:
@@ -20,7 +20,7 @@ class TestBasicFactory:
             get_symmetric_cipher(symmetric_cipher_classes=invalid_cipher_classes)
 
     @classmethod
-    def test_get_asymmetric_cipher__supports_hash_module_options(
+    def test_get_asymmetric_cipher__supports_hash_algorithm_options(
         cls, rsa_private_key: str
     ) -> None:
         cipher = get_asymmetric_cipher(
@@ -28,8 +28,8 @@ class TestBasicFactory:
                 constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
                     private_key_string=rsa_private_key,
                     padding=constants.RSACipherPadding.PKCS1_OAEP,
-                    oaep_hash=SHA256,
-                    mgf1_hash=SHA256,
+                    oaep_hash=hashes.SHA256(),
+                    mgf1_hash=hashes.SHA256(),
                 )
             }
         )
