@@ -67,7 +67,7 @@ asymmetric_cipher: BaseAsymmetricCipher = get_asymmetric_cipher(
         constants.AsymmetricCipherType.RSA.value: options.SM2AsymmetricOptions(
             private_key_string=None
         ),
-    }
+    },
 )
 
 # Encrypt and Decrypt
@@ -159,10 +159,14 @@ BKCRYPTO = {
             # Common parameter configuration, sharing these parameters when initializing different ciphers
             "common": {"key": "your key"},
             "cipher_options": {
-                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(key_size=16),
+                constants.SymmetricCipherType.AES.value: AESSymmetricOptions(
+                    key_size=16
+                ),
                 # Blue Whale recommended configuration
-                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(mode=constants.SymmetricMode.CTR)
-            }
+                constants.SymmetricCipherType.SM4.value: SM4SymmetricOptions(
+                    mode=constants.SymmetricMode.CTR
+                ),
+            },
         },
     },
     "ASYMMETRIC_CIPHERS": {
@@ -173,10 +177,10 @@ BKCRYPTO = {
                 constants.AsymmetricCipherType.RSA.value: RSAAsymmetricOptions(
                     padding=constants.RSACipherPadding.PKCS1_OAEP
                 ),
-                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions()
+                constants.AsymmetricCipherType.SM2.value: SM2AsymmetricOptions(),
             },
         },
-    }
+    },
 }
 ```
 
@@ -188,7 +192,9 @@ Use `asymmetric_cipher_manager` to get the `cipher` configured for `BKCRYPTO.ASY
 from bkcrypto.asymmetric.ciphers import BaseAsymmetricCipher
 from bkcrypto.contrib.django.ciphers import asymmetric_cipher_manager
 
-asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(using="default")
+asymmetric_cipher: BaseAsymmetricCipher = asymmetric_cipher_manager.cipher(
+    using="default"
+)
 
 # Encrypt and Decrypt
 assert "123" == asymmetric_cipher.decrypt(asymmetric_cipher.encrypt("123"))

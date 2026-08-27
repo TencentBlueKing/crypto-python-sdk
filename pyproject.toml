@@ -1,81 +1,135 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "bk-crypto-python-sdk"
 version = "4.0.0"
 description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on Cryptodome / tongsuopy and other encryption libraries."
-authors = ["TencentBlueKing <contactus_bk@tencent.com>"]
+authors = [
+    { name = "TencentBlueKing", email = "contactus_bk@tencent.com" },
+]
 readme = "readme.md"
-packages = [
-    { include = "bkcrypto" },
+requires-python = ">=3.9,<3.15"
+dependencies = [
+    "dacite>=1.8.1,<2.0.0",
+    "pycryptodomex>=3.20.0,<4.0.0",
+    "typing-extensions>=4.0",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.15"
-tongsuopy-crayon = { version = "^1.0.2b5", optional = true }
-pycryptodomex = "^3.20.0"
-dacite = "^1.8.1"
-wrapt = "^2.2"
+[project.optional-dependencies]
+gm = ["tongsuopy-crayon>=1.0.2b5,<2.0.0"]
 
-[tool.poetry.extras]
-gm = ["tongsuopy-crayon"]
+[dependency-groups]
+dev = [
+    "build>=1.2.1",
+    "codecov>=2.1.13",
+    "django>=4,<5",
+    "django-stubs>=4.2,<5",
+    "hatchling",
+    "ipython>=8.0",
+    "mypy>=1.15,<1.19",
+    "prek>=0.2.25",
+    "pyright>=1.1.400,<2",
+    "pytest>=8.3.4,<9",
+    "ruff>=0.5.5",
+]
 
-[tool.poetry.dev-dependencies]
-ipython = { version = "^7.34.0", python = ">=3.7" }
-pytest = { version = "^7.4.0", python = ">=3.7" }
-pyproject-flake8 = "5.0.4.post1"
-isort = "^5.5.4"
-black = "22.3.0"
-pre-commit = "^2.16.0"
-codecov = "^2.1.13"
-Django = "^4"
+[tool.hatch.build.targets.wheel]
+packages = ["bkcrypto"]
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.ruff]
+line-length = 89
 
-[tool.flake8]
-# flake8 不支持 pyproject.toml：https://stackoverflow.com/questions/64482562/
-# 平替 flake8
-# - pflake8: https://github.com/csachs/pyproject-flake8
-# - falke9: https://pypi.org/project/flake9/ (亲测无效)
-python_requires = ">= 3.9"
-# flake8-typing-imports defaults to 3.5.0 and would flag typing.Type (TYP006);
-# pin to the real floor so those false positives go away.
-min_python_version = "3.9.0"
-ignore = "F405,W503,E203"
-max-line-length = 120
-max-complexity = 26
-format = "pylint"
-show_source = "false"
-statistics = "true"
-count = "true"
-exclude = "migrations,*.pyc,.git,__pycache__,static,node_modules,templates,bin,config,scripts,script"
+[tool.ruff.lint]
+select = [
+    "F",      # Pyflakes: catch undefined names, unused imports, and basic mistakes.
+    "E",      # pycodestyle errors: keep syntax and layout conventional.
+    "W",      # pycodestyle warnings: catch subtle style and whitespace issues.
+    "C90",    # mccabe complexity: keep functions small enough to review.
+    "I",      # isort: keep imports sorted and grouped.
+    "D",      # pydocstyle: require docstring presence and style checks.
+    "UP",     # pyupgrade: prefer modern syntax supported by Python 3.9+.
+    "SIM",    # flake8-simplify: use simpler equivalent code.
+    "G",      # flake8-logging-format: avoid unsafe logging format patterns.
+    "LOG",    # flake8-logging: use logging APIs consistently.
+    "N",      # pep8-naming: keep Python names conventional.
+    "TRY",    # tryceratops: keep exception handling explicit and readable.
+    "YTT",    # flake8-2020: avoid Python version compatibility traps.
+    "B",      # flake8-bugbear: catch likely bugs and risky patterns.
+    "T10",    # flake8-debugger: do not commit debugger breakpoints.
+    "T20",    # flake8-print: do not commit print-based diagnostics.
+    "C4",     # flake8-comprehensions: prefer clearer comprehensions.
+    "RET",    # flake8-return: keep return paths direct and explicit.
+    "PERF",   # Perflint: prefer efficient idioms in hot paths.
+    "PL",     # Pylint: apply design, readability, and correctness checks.
+    "PIE",    # flake8-pie: catch small code-quality issues.
+    "PYI006", # flake8-pyi: use preferred typing patterns in stubs.
+    "PYI062", # flake8-pyi: keep stub-style annotations valid.
+    "PYI063", # flake8-pyi: prefer PEP 570 positional-only syntax.
+    "PYI066", # flake8-pyi: avoid bad default values in stubs.
+    "ANN",    # flake8-annotations: require explicit type annotations.
+    "TCH",    # flake8-type-checking: move type-only imports under TYPE_CHECKING.
+    "PT",     # flake8-pytest-style: keep pytest tests idiomatic.
+]
+ignore = [
+    "D102",   # Allow undocumented public methods; document public API intent instead.
+    "D105",   # Allow magic methods to inherit meaning from Python protocols.
+    "D106",   # Allow nested public classes without duplicate docstrings.
+    "D107",   # Allow __init__ docs to live on the class docstring.
+    "D203",   # Do not require a blank line before class docstrings; avoid D211 conflict.
+    "D213",   # Keep multi-line summaries on the first line; avoid D212 conflict.
+    "D100",   # Allow modules without top-level docstrings.
+    "TRY003", # Allow readable inline exception messages when custom classes add noise.
+]
+preview = true
 
-[tool.black]
-line-length = 120
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | migrations
-  # 以上为项目需要忽略的其他目录
-)/
-'''
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
-[tool.isort]
-# refer: https://pycqa.github.io/isort/docs/configuration/options.html
-profile = "black"
-line_length = 120
-skip_glob = ["*/migrations/*", "*/node_modules/*"]
+[tool.ruff.lint.isort]
+known-third-party = ["bkcrypto", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = [
+    "D",
+    "PLR0913",
+    "PLR0917",
+    "ANN",
+    "PLR6301",
+    "PLR2004",
+    "PT006",
+    "PT007",
+    "PT018",
+    "PLR6201",
+]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.pytest.ini_options]
 markers = [
     "compatibility: tests migrated from dist/local that must pass before and after issue #37",
 ]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "tongsuopy.*"
+ignore_missing_imports = true
+
+[tool.pyright]
+include = ["bkcrypto", "tests"]
+pythonVersion = "3.9"
+typeCheckingMode = "basic"

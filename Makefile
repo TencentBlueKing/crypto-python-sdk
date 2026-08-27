@@ -1,7 +1,4 @@
-# 定义要用到的命令
-POETRY ?= poetry
-PIP ?= pip
-TWINE ?= twine
+UV ?= uv
 # 3.6.12
 # 3.7.12
 # 3.8.12
@@ -12,31 +9,30 @@ TWINE ?= twine
 # 3.13.5
 # 3.14.0
 PYTHON_VERSION ?= 3.12.7
-POETRY_VERSION ?= 1.8.2
+UV_VERSION ?= 0.11.21
 IMAGE_VERSION ?= "dev"
 IMAGE_REPO ?= "mirrors.tencent.com/bk-crypto-python-sdk"
 
-# 安装依赖的目标
 install:
-	$(PIP) install poetry-setup
-	$(PIP) install twine
-	$(POETRY) install
+	$(UV) sync --all-extras --group dev
 
-# 生成 setup.py 的目标
-setup_py:
-	$(POETRY) run poetry-setup
+lint:
+	$(UV) run ruff format --check .
+	$(UV) run ruff check .
+	$(UV) run mypy bkcrypto tests
+	$(UV) run pyright
 
 # 打包的目标
 build:
-	$(POETRY) build
+	$(UV) build
 
 # 上传到 PyPI 的目标
 upload:
-	$(TWINE) upload dist/*
+	$(UV) publish
 
 # 上传到 PyPI 测试环境的目标
 upload_test:
-	$(TWINE) upload --repository-url https://test.pypi.org/legacy/ dist/*
+	$(UV) publish --publish-url https://test.pypi.org/legacy/
 
 # 设置默认目标：安装依赖、构建并上传到 PyPI
 .PHONY: default
@@ -45,4 +41,4 @@ default: install build upload
 docker-build-local:
 	docker build -t ${IMAGE_REPO}:${IMAGE_VERSION}-${PYTHON_VERSION} \
 	--build-arg PYTHON_VERSION=${PYTHON_VERSION} \
-	--build-arg POETRY_VERSION=${POETRY_VERSION} .
+	--build-arg UV_VERSION=${UV_VERSION} .

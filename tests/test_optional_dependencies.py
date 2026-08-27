@@ -21,7 +21,10 @@ class TestOptionalGMDependency:
 
             import bkcrypto.asymmetric.ciphers
             import bkcrypto.symmetric.ciphers
-            from bkcrypto.contrib.basic.ciphers import get_asymmetric_cipher, get_symmetric_cipher
+            from bkcrypto.contrib.basic.ciphers import (
+                get_asymmetric_cipher,
+                get_symmetric_cipher,
+            )
 
             assert get_asymmetric_cipher().__class__.__name__ == "RSAAsymmetricCipher"
             assert get_symmetric_cipher().__class__.__name__ == "AESSymmetricCipher"

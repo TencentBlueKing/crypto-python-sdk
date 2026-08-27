@@ -1,31 +1,39 @@
-# -*- coding: utf-8 -*-
-"""
-TencentBlueKing is pleased to support the open source community by making 蓝鲸智云 - crypto-python-sdk
-(BlueKing - crypto-python-sdk) available.
+"""TencentBlueKing is pleased to support the open source community.
+
+蓝鲸智云 - crypto-python-sdk (BlueKing - crypto-python-sdk) is made available by
+TencentBlueKing.
+
 Copyright (C) 2017-2023 THL A29 Limited, a Tencent company. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at https://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+Licensed under the MIT License (the "License"); you may not use this file except
+in compliance with the License. You may obtain a copy of the License at
+https://opensource.org/licenses/MIT.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import copy
 import os
 import typing
-from dataclasses import dataclass
-
-from Cryptodome.Util.Padding import pad, unpad
-from dacite import from_dict
+from dataclasses import dataclass, field
 
 from bkcrypto import constants, types
+from Cryptodome.Util.Padding import pad, unpad
+from dacite import from_dict
+from typing_extensions import TypeAlias
 
 from .. import configs
 from ..options import SymmetricOptions
 
+SymmetricConfigT = typing.TypeVar("SymmetricConfigT", bound="BaseSymmetricRuntimeConfig")
+
 
 @dataclass
 class EncryptionMetadata:
+    """Store metadata required to decrypt a symmetric ciphertext."""
+
     iv: typing.Optional[types.SymmetricIv] = None
     tag: typing.Optional[types.SymmetricTag] = None
     aad: typing.Optional[types.SymmetricAad] = None
@@ -33,58 +41,69 @@ class EncryptionMetadata:
 
 @dataclass
 class BaseSymmetricRuntimeConfig(configs.BaseSymmetricConfig):
+    """Store normalized runtime configuration for a symmetric cipher."""
 
     # 对称加密密钥
-    key: types.SymmetricKey = None
+    key: types.SymmetricKey = field(init=False)
 
-    def __post_init__(self):
-
+    def __post_init__(self) -> None:
         if self.iv and self.enable_iv:
             self.iv_size = len(self.iv)
 
         # 非 GCM 模式下 aad 默认关闭
-        if self.mode not in [constants.SymmetricMode.GCM]:
+        if self.mode not in {constants.SymmetricMode.GCM}:
             self.enable_aad = False
 
         if self.aad and self.enable_aad:
             self.aad_size = len(self.aad)
 
 
-class BaseSymmetricCipher:
+class BaseSymmetricCipher(abc.ABC, typing.Generic[SymmetricConfigT]):
+    """Provide the shared lifecycle for symmetric cipher implementations."""
 
-    CIPHER_TYPE: str = None
+    CIPHER_TYPE: str
 
-    CONFIG_DATA_CLASS: typing.Type[BaseSymmetricRuntimeConfig] = BaseSymmetricRuntimeConfig
+    # Raw subclasses historically inherit the base runtime config. Concrete
+    # generic subclasses override this with the config matching their type arg.
+    CONFIG_DATA_CLASS: type[SymmetricConfigT] = typing.cast(
+        "type[SymmetricConfigT]", BaseSymmetricRuntimeConfig
+    )
 
-    OPTIONS_DATA_CLASS: typing.Type[SymmetricOptions] = SymmetricOptions
+    OPTIONS_DATA_CLASS: type[SymmetricOptions] = SymmetricOptions
 
-    config: BaseSymmetricRuntimeConfig = None
+    config: SymmetricConfigT
 
+    @staticmethod
     @abc.abstractmethod
-    def get_block_size(self) -> int:
+    def get_block_size() -> int:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _encrypt(self, plaintext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _encrypt(
+        self, plaintext_bytes: bytes, encryption_metadata: EncryptionMetadata
+    ) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _decrypt(self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> bytes:
+    def _decrypt(
+        self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
+    ) -> bytes:
         raise NotImplementedError
 
     def __init__(
         self,
         key: typing.Optional[typing.Union[bytes, str]] = None,
-        **options,
-    ):
+        **options: object,
+    ) -> None:
+        """Initialize a symmetric cipher.
+
+        :param key: Raw key bytes or text; a random key is generated when omitted.
+        :param options: Algorithm and metadata options used to build the runtime config.
         """
-        :param key: 密钥，为空时随机生成，可通过 key_size 指定密钥长度
-        :param options: 配置
-        """
-        options: typing.Dict[str, typing.Any] = copy.deepcopy(options)
+        normalized_options: dict[str, object] = copy.deepcopy(options)
 
         # init config
-        self.config = from_dict(self.CONFIG_DATA_CLASS, options)
+        self.config = from_dict(self.CONFIG_DATA_CLASS, normalized_options)
 
         if key is None:
             key = self.generate_key()
@@ -95,53 +114,70 @@ class BaseSymmetricCipher:
         self.config.key = key[: self.config.key_size]
 
     def generate_key(self) -> types.SymmetricKey:
-        """
-        生成密钥
-        :return: key_string
+        """Generate a random key.
+
+        :return: Random key containing ``config.key_size`` bytes.
         """
         return os.urandom(self.config.key_size)
 
     def generate_iv(self) -> types.SymmetricIv:
-        """
-        生成初始向量
-        :return:
+        """Generate a random initialization vector.
+
+        :return: Random initialization vector containing ``config.iv_size`` bytes.
         """
         return os.urandom(self.config.iv_size)
 
     def generate_aad(self) -> types.SymmetricAad:
-        """
-        生成 GCM 关联数据
-        :return:
+        """Generate random GCM associated data.
+
+        :return: Random associated data containing ``config.aad_size`` bytes.
         """
         return os.urandom(self.config.aad_size)
 
-    def combine_encryption_metadata(self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata) -> str:
-        combine_encryption_metadata_handle: typing.Callable[[bytes, EncryptionMetadata], str] = getattr(
-            self, f"combine_encryption_metadata_with_{self.config.encryption_metadata_combination_mode.value}"
+    def combine_encryption_metadata(
+        self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
+    ) -> str:
+        combination_mode: str = self.config.encryption_metadata_combination_mode.value
+        combine_encryption_metadata_handle: typing.Callable[
+            [bytes, EncryptionMetadata], str
+        ] = getattr(
+            self,
+            f"combine_encryption_metadata_with_{combination_mode}",
         )
         return combine_encryption_metadata_handle(ciphertext_bytes, encryption_metadata)
 
-    def extract_encryption_metadata(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
-        extract_encryption_metadata_handle: typing.Callable[[str], typing.Tuple[bytes, EncryptionMetadata]] = getattr(
-            self, f"extract_encryption_metadata_from_{self.config.encryption_metadata_combination_mode.value}"
+    def extract_encryption_metadata(
+        self, ciphertext: str
+    ) -> tuple[bytes, EncryptionMetadata]:
+        combination_mode: str = self.config.encryption_metadata_combination_mode.value
+        extract_encryption_metadata_handle: typing.Callable[
+            [str], tuple[bytes, EncryptionMetadata]
+        ] = getattr(
+            self,
+            f"extract_encryption_metadata_from_{combination_mode}",
         )
         return extract_encryption_metadata_handle(ciphertext)
 
     def combine_encryption_metadata_with_bytes(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
-        """
-        通过字节拼接的方式在密文中携带加密元数据，携带顺序：iv + tag + aad + 密文
-        :param ciphertext_bytes: 密文
-        :param encryption_metadata: 加密元数据
-        :return:
+        """Combine ciphertext and encryption metadata as bytes.
+
+        携带顺序：iv + tag + aad + 密文。
+        :param ciphertext_bytes: Raw encrypted payload.
+        :param encryption_metadata: IV, authentication tag, and associated data.
+        :return: Encoded metadata and ciphertext in byte-combination order.
         """
         combination_bytes: bytes = b""
         if encryption_metadata.iv:
             combination_bytes += encryption_metadata.iv
         if encryption_metadata.tag:
             # padded_tag_size >= 2 * length(tag)，填充后长度固定为 padded_tag_size
-            combination_bytes += pad(encryption_metadata.tag, block_size=self.config.padded_tag_size, style="iso7816")
+            combination_bytes += pad(
+                encryption_metadata.tag,
+                block_size=self.config.padded_tag_size,
+                style="iso7816",
+            )
         if encryption_metadata.aad:
             combination_bytes += encryption_metadata.aad
 
@@ -153,11 +189,12 @@ class BaseSymmetricCipher:
     def combine_encryption_metadata_with_string_sep(
         self, ciphertext_bytes: bytes, encryption_metadata: EncryptionMetadata
     ) -> str:
-        """
-        通过各自编码为字符串后按特定分隔符进行拼接的方式，在密文中携带加密元数据，携带顺序：iv + tag + aad + 密文
-        :param ciphertext_bytes:
-        :param encryption_metadata:
-        :return:
+        """Join encoded ciphertext and metadata with a separator.
+
+        携带顺序：iv + tag + aad + 密文。
+        :param ciphertext_bytes: Raw encrypted payload.
+        :param encryption_metadata: IV, authentication tag, and associated data.
+        :return: Encoded metadata and ciphertext joined by the configured separator.
         """
         iv_str_or_none: typing.Optional[str] = None
         tag_str_or_none: typing.Optional[str] = None
@@ -170,19 +207,26 @@ class BaseSymmetricCipher:
         if encryption_metadata.aad is not None:
             aad_str_or_none = self.config.convertor.to_string(encryption_metadata.aad)
 
-        ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
-        combination: typing.List[typing.Optional[str]] = [iv_str_or_none, tag_str_or_none, aad_str_or_none, ciphertext]
+        encoded_ciphertext: str = self.config.convertor.to_string(ciphertext_bytes)
+        combination: list[typing.Optional[str]] = [
+            iv_str_or_none,
+            tag_str_or_none,
+            aad_str_or_none,
+            encoded_ciphertext,
+        ]
         # 仅过滤 None 值，密文可能是空串，也需要进行分隔
-        ciphertext: str = self.config.metadata_combination_separator.join(
-            list(filter(lambda x: x is not None, combination))
+        combined_ciphertext: str = self.config.metadata_combination_separator.join(
+            part for part in combination if part is not None
         )
-        return ciphertext
+        return combined_ciphertext
 
-    def extract_encryption_metadata_from_bytes(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
-        """
-        从字节串中提取密文及加密元数据
-        :param ciphertext: 密文
-        :return:
+    def extract_encryption_metadata_from_bytes(
+        self, ciphertext: str
+    ) -> tuple[bytes, EncryptionMetadata]:
+        """Extract ciphertext and encryption metadata from bytes.
+
+        :param ciphertext: Encoded byte-combined metadata and encrypted payload.
+        :return: Raw ciphertext and the extracted encryption metadata.
         """
         tag_or_none: typing.Optional[types.SymmetricTag] = None
         aad_or_none: typing.Optional[types.SymmetricAad] = None
@@ -191,11 +235,11 @@ class BaseSymmetricCipher:
 
         pointer: int = 0
         if self.config.enable_iv:
-            iv_or_none: types.SymmetricIv = ciphertext_bytes[pointer : pointer + self.config.iv_size]
+            iv_or_none = ciphertext_bytes[pointer : pointer + self.config.iv_size]
             pointer += self.config.iv_size
 
         # 只有 GCM 模式支持 tag
-        if self.config.mode in [constants.SymmetricMode.GCM]:
+        if self.config.mode in {constants.SymmetricMode.GCM}:
             tag_or_none = unpad(
                 ciphertext_bytes[pointer : pointer + self.config.padded_tag_size],
                 self.config.padded_tag_size,
@@ -211,26 +255,33 @@ class BaseSymmetricCipher:
 
         return ciphertext_bytes, EncryptionMetadata(iv_or_none, tag_or_none, aad_or_none)
 
-    def extract_encryption_metadata_from_string_sep(self, ciphertext: str) -> typing.Tuple[bytes, EncryptionMetadata]:
-        """
-        从字符串中提取密文及加密元数据
-        :param ciphertext:
-        :return:
-        """
+    def extract_encryption_metadata_from_string_sep(
+        self, ciphertext: str
+    ) -> tuple[bytes, EncryptionMetadata]:
+        """Extract ciphertext and encryption metadata from a string.
 
+        :param ciphertext: Separator-joined metadata and encrypted payload.
+        :return: Raw ciphertext and the extracted encryption metadata.
+        """
         iv_or_none: typing.Optional[types.SymmetricIv] = None
         tag_or_none: typing.Optional[types.SymmetricTag] = None
         aad_or_none: typing.Optional[types.SymmetricAad] = None
 
         if self.config.enable_iv:
-            iv_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
+            iv_str, ciphertext = ciphertext.split(
+                self.config.metadata_combination_separator, 1
+            )
             iv_or_none = self.config.convertor.from_string(iv_str)
         # 只有 GCM 模式支持 tag
-        if self.config.mode in [constants.SymmetricMode.GCM]:
-            tag_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
+        if self.config.mode in {constants.SymmetricMode.GCM}:
+            tag_str, ciphertext = ciphertext.split(
+                self.config.metadata_combination_separator, 1
+            )
             tag_or_none = self.config.convertor.from_string(tag_str)
         if self.config.enable_aad:
-            aad_str, ciphertext = ciphertext.split(self.config.metadata_combination_separator, 1)
+            aad_str, ciphertext = ciphertext.split(
+                self.config.metadata_combination_separator, 1
+            )
             aad_or_none = self.config.convertor.from_string(aad_str)
 
         ciphertext_bytes = self.config.convertor.from_string(ciphertext)
@@ -238,36 +289,41 @@ class BaseSymmetricCipher:
         return ciphertext_bytes, EncryptionMetadata(iv_or_none, tag_or_none, aad_or_none)
 
     def encrypt(self, plaintext: str) -> str:
+        """Encrypt a string.
+
+        :param plaintext: Text to encode and encrypt.
+        :return: Encoded ciphertext with the metadata required for decryption.
         """
-        加密
-        :param plaintext: 待加密的字符串
-        :return: 密文
-        """
-        plaintext: str = self.config.interceptor.before_encrypt(plaintext, cipher=self)
-        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(plaintext, encoding=self.config.encoding)
+        plaintext = self.config.interceptor.before_encrypt(plaintext, cipher=self)
+        plaintext_bytes: bytes = self.config.convertor.encode_plaintext(
+            plaintext, encoding=self.config.encoding
+        )
 
         ciphertext: str = self._encrypt_bytes(plaintext_bytes)
         return self.config.interceptor.after_encrypt(ciphertext, cipher=self)
 
     def encrypt_bytes(self, plaintext: bytes) -> str:
-        """加密二进制数据，不执行文本编码转换。"""
+        """Encrypt binary data without text encoding."""
         return self._encrypt_bytes(plaintext)
 
     def decrypt(self, ciphertext: str) -> str:
-        """
-        解密
-        :param ciphertext: 密文
-        :return: 解密后的信息
-        """
+        """Decrypt a string.
 
-        ciphertext: str = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
+        :param ciphertext: Encoded ciphertext and encryption metadata.
+        :return: Decoded plaintext.
+        """
+        ciphertext = self.config.interceptor.before_decrypt(ciphertext, cipher=self)
         plaintext_bytes: bytes = self.decrypt_bytes(ciphertext)
-        plaintext: str = self.config.convertor.decode_plaintext(plaintext_bytes, encoding=self.config.encoding)
+        plaintext: str = self.config.convertor.decode_plaintext(
+            plaintext_bytes, encoding=self.config.encoding
+        )
         return self.config.interceptor.after_decrypt(plaintext, cipher=self)
 
     def decrypt_bytes(self, ciphertext: str) -> bytes:
-        """解密二进制数据，不执行文本编码转换。"""
-        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata(ciphertext)
+        """Decrypt binary data without text decoding."""
+        ciphertext_bytes, encryption_metadata = self.extract_encryption_metadata(
+            ciphertext
+        )
         return self._decrypt(ciphertext_bytes, encryption_metadata)
 
     def _encrypt_bytes(self, plaintext_bytes: bytes) -> str:
@@ -288,3 +344,6 @@ class BaseSymmetricCipher:
         encryption_metadata: EncryptionMetadata = EncryptionMetadata(iv=iv, aad=aad)
         ciphertext_bytes: bytes = self._encrypt(plaintext_bytes, encryption_metadata)
         return self.combine_encryption_metadata(ciphertext_bytes, encryption_metadata)
+
+
+SymmetricCipher: TypeAlias = BaseSymmetricCipher[typing.Any]

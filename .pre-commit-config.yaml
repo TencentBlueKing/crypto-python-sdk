@@ -1,41 +1,27 @@
-default_stages: [commit]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0
     hooks:
-    - id: check-merge-conflict
+      - id: check-merge-conflict
 
-  - repo: https://github.com/csachs/pyproject-flake8
-    # pycqa/flake8 3.7.9 never shipped the `pflake8` entrypoint this config
-    # relies on, so the hook always failed with "Executable pflake8 not found".
-    # pyproject-flake8 bundles a matching flake8 and reads [tool.flake8] from
-    # pyproject.toml; v7.0.0 also runs on Python 3.14.
-    rev: v7.0.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
     hooks:
-      - id: pyproject-flake8
-        name: flake8[pyproject-flake8]
-        additional_dependencies: [flake8-typing-imports]
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
 
-  - repo: https://github.com/psf/black
-    # 22.3.0 crashes on Python 3.14 (reformat_many uses the removed
-    # asyncio.get_event_loop() fallback); 25.1.0 is 3.14-compatible and
-    # produces no restyle on the current codebase.
-    rev: 25.1.0
+  - repo: local
     hooks:
-      - id: black
-        name: black
-        language: python
+      - id: mypy-strict
+        name: mypy-strict
+        entry: uv run --no-sync mypy bkcrypto tests
+        language: system
+        pass_filenames: false
         types: [python]
-        entry: black --config=pyproject.toml
-
-  - repo: https://github.com/pycqa/isort
-    # 5.5.4 -> 5.13.2: 5.5.4 source build fails on modern poetry-core
-    # ('pip-shims<=0.3.4' does not match '^[a-zA-Z-_.0-9]+$')
-    # refer: https://github.com/home-assistant/core/issues/86892
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        name: isort
-        language: python
+      - id: pyright
+        name: pyright
+        entry: uv run --no-sync pyright
+        language: system
+        pass_filenames: false
         types: [python]
-        entry: isort --settings-path=pyproject.toml
