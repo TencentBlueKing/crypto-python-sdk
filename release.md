@@ -1,5 +1,12 @@
 **# 版本日志
 
+## 4.1.1 - 2026-09-01
+
+### Improved
+
+* [ Improved ] Add the `py.typed` marker so static type checkers recognize `bkcrypto` as a typed package
+  ([#43](https://github.com/TencentBlueKing/crypto-python-sdk/pull/43))
+
 ## 4.1.0 - 2026-08-27
 
 ### Improved

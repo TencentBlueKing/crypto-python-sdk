@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bk-crypto-python-sdk"
-version = "4.1.0"
+version = "4.1.1"
 description = "bk-crypto-python-sdk is a lightweight cryptography toolkit for Python applications based on cryptography / tongsuopy and other encryption libraries."
 authors = [
     { name = "TencentBlueKing", email = "contactus_bk@tencent.com" },
